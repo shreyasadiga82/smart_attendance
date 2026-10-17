@@ -16,5 +16,6 @@ python-dotenv==1.0.0
 psutil
 gpiozero
 RPLCD
+RPi.GPIO
 smbus2
 requests

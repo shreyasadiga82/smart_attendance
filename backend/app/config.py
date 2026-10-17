@@ -39,10 +39,18 @@ class Settings(BaseSettings):
     LIVENESS_CHECK: bool = True
 
     # Hardware/Edge settings
+    LCD_MODE: Literal["parallel", "i2c"] = "parallel"
+    LCD_RS_PIN: int = 25
+    LCD_E_PIN: int = 24
+    LCD_D4_PIN: int = 5
+    LCD_D5_PIN: int = 6
+    LCD_D6_PIN: int = 13
+    LCD_D7_PIN: int = 19
     LCD_I2C_ADDR: int = 0x27
-    PIN_BUZZER: int = 17
-    PIN_LED_GREEN: int = 27
-    PIN_LED_RED: int = 22
+
+    PIN_LED_GREEN: int = 17
+    PIN_LED_RED: int = 27
+    PIN_BUZZER: int = 22
     PIN_BUTTON: int = 23
 
     # Session timings (24-hour format)

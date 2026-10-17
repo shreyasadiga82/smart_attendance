@@ -19,15 +19,17 @@ class AttendanceService:
     def mark_attendance(
         self,
         student_id: int,
-        target_date: date,
-        session: str,
+        target_date: Optional[date] = None,
+        session: str = "morning",
         method: str = "auto",
-        note: Optional[str] = None
+        note: Optional[str] = None,
+        date: Optional[date] = None
     ) -> Attendance:
         """
         Mark attendance for a student.
         Raises ValueError if already marked or outside session.
         """
+        target_date = target_date or date or datetime.now().date()
         # Check if session is active
         current_session = self.session_service.get_current_session()
         if current_session is None:

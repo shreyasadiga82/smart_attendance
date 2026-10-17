@@ -3,4 +3,5 @@ websockets
 requests
 gpiozero
 RPLCD
+RPi.GPIO
 smbus2

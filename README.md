@@ -111,17 +111,59 @@ The system is uniquely optimized to run on the **Raspberry Pi 3 Model B** (Broad
 
 ### 2. GPIO Hardware Wiring Guide
 
-| Peripheral | Component | Physical Pin | BCM GPIO | Notes |
+#### 1602A HD44780 16x2 Character LCD (4-bit Parallel, Default `LCD_MODE=parallel`)
+| 1602A Pin | Signal | Physical Pin | BCM GPIO | Notes |
+| :---: | :--- | :--- | :--- | :--- |
+| **1** | VSS (GND) | Pin 6 | GND | Power ground |
+| **2** | VDD (+5V) | Pin 2 | +5V | Logic power |
+| **3** | V0 (Contrast) | Pot Center | Contrast | Wiper of 10kΩ pot between 5V/GND (or 1k-2.2kΩ to GND) |
+| **4** | RS | Pin 22 | **GPIO 25** | Register Select |
+| **5** | RW | Ground Rail | GND | Tied to GND (Write mode) |
+| **6** | E | Pin 18 | **GPIO 24** | Enable clock |
+| **11** | D4 | Pin 29 | **GPIO 5** | 4-bit Data line 4 |
+| **12** | D5 | Pin 31 | **GPIO 6** | 4-bit Data line 5 |
+| **13** | D6 | Pin 33 | **GPIO 13** | 4-bit Data line 6 |
+| **14** | D7 | Pin 35 | **GPIO 19** | 4-bit Data line 7 |
+| **15** | A (LED+) | Pin 4 | +5V (via 220Ω) | Backlight Anode with 220Ω current limiting resistor |
+| **16** | K (LED-) | Pin 34 | GND | Backlight Cathode to GND |
+
+#### Status Indicators & Controls
+| Peripheral | Component | Physical Pin | BCM GPIO | Circuit Connection |
 | :--- | :--- | :--- | :--- | :--- |
-| **I2C LCD** | SDA | Pin 3 | GPIO 2 | 16x2 Character LCD with PCF8574 backpack |
-| **I2C LCD** | SCL | Pin 5 | GPIO 3 | Default address `0x27` (or `0x3F`) |
-| **I2C LCD** | VCC & GND | Pin 2 & Pin 6 | 5V & GND | Power rails |
-| **Buzzer** | Signal (+) | Pin 12 | GPIO 18 | 5V Active Buzzer (success/warning chirps) |
-| **Green LED** | Anode (+) | Pin 16 | GPIO 23 | 330Ω resistor in series (Attendance Success) |
-| **Red LED** | Anode (+) | Pin 18 | GPIO 24 | 330Ω resistor in series (Unknown / Warning) |
-| **Push Button**| Terminal 1 | Pin 22 | GPIO 25 | Pull-up configuration (Manual trigger) |
+| **Green LED** | Anode (+) | Pin 11 | **GPIO 17** | 330Ω resistor in series to LED (+) -> Cathode to GND |
+| **Red LED** | Anode (+) | Pin 13 | **GPIO 27** | 330Ω resistor in series to LED (+) -> Cathode to GND |
+| **Active Buzzer** | Signal (+) | Pin 15 | **GPIO 22** | 5V Active Buzzer (+) -> Buzzer (-) to GND |
+| **Push Button** | Terminal 1 | Pin 16 | **GPIO 23** | Terminal 1 to GPIO 23, Terminal 2 to GND (Pin 14) |
+
+*(Optional I2C LCD with PCF8574 backpack: set `LCD_MODE=i2c` in `.env` with SDA on GPIO 2, SCL on GPIO 3, default address `0x27`).*
 
 ---
+
+### 3. Mode B: Pi Edge Client Setup
+
+In Mode B, your laptop/server runs the heavy InsightFace AI backend, and the Raspberry Pi runs as a lightweight camera + LCD terminal.
+
+```bash
+# 1. On your Raspberry Pi, navigate to the edge directory
+cd ~/smart_attendance/edge
+
+# 2. Set up virtual environment and install dependencies
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements-pi-client.txt
+
+# 3. Launch the edge client:
+# If your laptop backend is on HTTP / unencrypted ws://:
+EDGE_SERVER_URL=ws://192.168.1.100:8000/ws/recognition python pi_client.py
+
+# If your laptop backend is on HTTPS / wss://:
+# To trust local mkcert CA:
+EDGE_SERVER_URL=wss://192.168.1.100:8000/ws/recognition EDGE_CA_FILE=../certs/rootCA.pem python pi_client.py
+
+# Or to bypass SSL certificate validation on trusted LAN:
+EDGE_SERVER_URL=wss://192.168.1.100:8000/ws/recognition EDGE_VERIFY_SSL=false python pi_client.py
+```
+
 
 ## 🚀 Quick Start
 
@@ -177,7 +219,7 @@ venv\Scripts\activate
 source venv/bin/activate
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -r requirements.txtact
 
 # Create admin user
 python ../scripts/create_admin.py
@@ -207,12 +249,28 @@ npm run dev
 
 Modern mobile browsers (iOS Safari, Android Chrome) **block camera access (`getUserMedia`) on unencrypted HTTP connections** unless accessed through `localhost`.
 
-To use phone cameras over your local Wi-Fi:
-1. Install [mkcert](https://github.com/FiloSottile/mkcert):
-   ```powershell
-   choco install mkcert
-   mkcert -install
-   ```
+To use phone cameras over your local Wi-Fi, install [mkcert](https://github.com/FiloSottile/mkcert) using the single dedicated package method for your operating system:
+
+- **Windows** (via Chocolatey):
+  ```powershell
+  choco install mkcert
+  mkcert -install
+  ```
+- **macOS** (via Homebrew):
+  ```bash
+  brew install mkcert
+  mkcert -install
+  ```
+- **Linux** (Debian, Ubuntu, Raspberry Pi OS):
+  ```bash
+  sudo apt update && sudo apt install -y libnss3-tools curl
+  # Download standalone binary for your architecture (amd64 or arm64)
+  curl -JLO "https://dl.filippo.io/mkcert/latest?for=linux/$(dpkg --print-architecture)"
+  chmod +x mkcert-v*-linux-*
+  sudo cp mkcert-v*-linux-* /usr/local/bin/mkcert
+  mkcert -install
+  ```
+
 2. Generate local certificates:
    ```bash
    python scripts/make_cert.py
@@ -224,7 +282,7 @@ To use phone cameras over your local Wi-Fi:
    SSL_CERTFILE=certs/cert.pem
    SSL_KEYFILE=certs/key.pem
    ```
-4. Find your machine's local IP address (`ipconfig` on Windows or `ifconfig` on Linux) and open `https://<YOUR_LOCAL_IP>:3000` on your smartphone!
+4. Find your machine's local IP address (`ipconfig` on Windows or `hostname -I` on Linux) and open `https://<YOUR_LOCAL_IP>:3000` on your smartphone!
 5. Tap **"Add to Home Screen"** to install as a standalone PWA application.
 
 ---
@@ -235,6 +293,7 @@ Copy `.env.example` to `backend/.env` and configure as required:
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
+| `PROFILE` | `laptop` | Profile preset: `laptop` or `pi3` (Pi 3 Model B optimizations) |
 | `SECRET_KEY` | *changeme* | Secret key for JWT signature creation |
 | `ALGORITHM` | `HS256` | Token hashing algorithm |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `1440` | JWT expiration (24 hours) |
@@ -243,6 +302,18 @@ Copy `.env.example` to `backend/.env` and configure as required:
 | `RECOGNITION_THRESHOLD` | `0.45` | Cosine similarity threshold for identity match |
 | `LIVENESS_CHECK` | `true` | Enable/disable anti-spoof liveness verification |
 | `NOTIFIER_TYPE` | `console` | Dispatcher type: `console`, `whatsapp`, `sms`, `email` |
+| `LCD_MODE` | `parallel` | LCD driver: `parallel` (1602A HD44780 4-bit) or `i2c` (PCF8574) |
+| `LCD_RS_PIN` | `25` | 1602A Register Select GPIO (BCM) |
+| `LCD_E_PIN` | `24` | 1602A Enable Strobe GPIO (BCM) |
+| `LCD_D4_PIN`..`D7_PIN` | `5, 6, 13, 19` | 1602A 4-bit Data GPIOs (BCM) |
+| `LCD_I2C_ADDR` | `39` | PCF8574 I2C address (0x27 in decimal) when `LCD_MODE=i2c` |
+| `PIN_LED_GREEN` | `17` | Green LED indicator GPIO (BCM) |
+| `PIN_LED_RED` | `27` | Red LED indicator GPIO (BCM) |
+| `PIN_BUZZER` | `22` | Active Buzzer GPIO (BCM) |
+| `PIN_BUTTON` | `23` | Push Button GPIO (BCM, pull-up) |
+| `EDGE_SERVER_URL` | `ws://...` | WebSocket stream endpoint for `edge/pi_client.py` |
+| `EDGE_VERIFY_SSL` | `true` | Validate SSL certificates on `wss://` connections |
+| `EDGE_CA_FILE` | *(empty)* | Optional path to local root CA (e.g. `certs/rootCA.pem`) |
 | `SESSION_MORNING_START` | `08:30` | Morning session attendance start time |
 | `SESSION_MORNING_END` | `10:00` | Morning session cutoff |
 | `SESSION_AFTERNOON_START`| `13:30` | Afternoon session attendance start time |

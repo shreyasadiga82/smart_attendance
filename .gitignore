@@ -91,14 +91,19 @@ frontend/build/
 
 # Environment variables
 .env
-.env.local
-.env.development
-.env.production
+.env.*
+*.env
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
 
 # SSL certificates (generate your own)
 certs/
 
 # Data directory (contains SQLite DB, face images, reports)
+data/
 data/*
 !data/.gitkeep
 

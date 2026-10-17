@@ -86,7 +86,15 @@ async def get_dashboard_data(
     edge_devices = db.query(EdgeDevice).all()
     
     # System Stats
-    import psutil
+    cpu_percent = 0.0
+    ram_percent = 0.0
+    try:
+        import psutil
+        cpu_percent = psutil.cpu_percent(interval=None)
+        ram_percent = psutil.virtual_memory().percent
+    except Exception:
+        pass
+
     cpu_temp = None
     try:
         # Works on Raspberry Pi
@@ -96,8 +104,8 @@ async def get_dashboard_data(
         pass
         
     system_stats = {
-        "cpu_percent": psutil.cpu_percent(interval=None),
-        "ram_percent": psutil.virtual_memory().percent,
+        "cpu_percent": cpu_percent,
+        "ram_percent": ram_percent,
         "cpu_temp": cpu_temp,
         "is_pi": (settings.PROFILE == "pi3")
     }

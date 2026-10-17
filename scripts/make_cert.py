@@ -20,11 +20,13 @@ def check_mkcert_installed():
 def install_mkcert_instructions():
     """Print instructions for installing mkcert."""
     print("mkcert is not installed. Please install it first:")
-    print("  Windows: choco install mkcert")
-    print("  macOS: brew install mkcert")
-    print("  Linux: ")
-    print("    Ubuntu/Debian: sudo apt install libnss3-tools")
-    print("    Then: https://github.com/FiloSottile/mkcert#installation")
+    print("  Windows: choco install mkcert && mkcert -install")
+    print("  macOS:   brew install mkcert && mkcert -install")
+    print("  Linux (Debian/Ubuntu/Pi OS):")
+    print("    sudo apt update && sudo apt install -y libnss3-tools curl")
+    print("    curl -JLO 'https://dl.filippo.io/mkcert/latest?for=linux/amd64'  # or linux/arm64 on Pi")
+    print("    chmod +x mkcert-v*-linux-* && sudo cp mkcert-v*-linux-* /usr/local/bin/mkcert")
+    print("    mkcert -install")
     print("After installing, run this script again.")
     sys.exit(1)
 

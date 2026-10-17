@@ -14,12 +14,23 @@ fi
 
 REAL_USER="${SUDO_USER:-$USER}"
 USER_HOME=$(eval echo "~$REAL_USER")
-INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Detect LCD_MODE from existing .env or environment variable (default: parallel)
+LCD_MODE="${LCD_MODE:-parallel}"
+if [ -f "$INSTALL_DIR/backend/.env" ]; then
+    ENV_LCD_MODE=$(grep -E "^LCD_MODE=" "$INSTALL_DIR/backend/.env" | cut -d '=' -f2 | tr -d ' "' || true)
+    [ -n "$ENV_LCD_MODE" ] && LCD_MODE="$ENV_LCD_MODE"
+elif [ -f "$INSTALL_DIR/.env" ]; then
+    ENV_LCD_MODE=$(grep -E "^LCD_MODE=" "$INSTALL_DIR/.env" | cut -d '=' -f2 | tr -d ' "' || true)
+    [ -n "$ENV_LCD_MODE" ] && LCD_MODE="$ENV_LCD_MODE"
+fi
 
 echo "=================================================================="
 echo "  Smart Attendance System - Raspberry Pi 3 Model B Optimizer"
 echo "  Target User: $REAL_USER"
 echo "  Directory:   $INSTALL_DIR"
+echo "  LCD Mode:    $LCD_MODE"
 echo "=================================================================="
 
 # 1. Update OS repositories
@@ -31,8 +42,11 @@ echo "[2/8] Installing essential hardware and Python libraries..."
 apt-get install -y --no-install-recommends \
     python3-pip python3-venv python3-dev build-essential \
     libatlas-base-dev libavcodec-dev libavformat-dev libswscale-dev libv4l-dev \
-    libxvidcore-dev libx264-dev libgl1-mesa-glx i2c-tools python3-smbus \
+    libxvidcore-dev libx264-dev libgl1-mesa-glx python3-smbus \
     zram-tools libcamera-dev v4l-utils
+if [ "$LCD_MODE" = "i2c" ]; then
+    apt-get install -y --no-install-recommends i2c-tools
+fi
 
 # 3. Configure ZRAM Swap (Crucial for 1GB RAM on Pi 3 Model B)
 echo "[3/8] Configuring ZRAM swap for memory efficiency..."
@@ -42,16 +56,12 @@ if [ -f /etc/default/zramswap ]; then
     systemctl restart zramswap || true
 fi
 
-# 4. Enable I2C, Camera, and GPU memory allocation
-echo "[4/8] Configuring boot firmware (I2C, Camera, GPU Memory)..."
+# 4. Enable Camera, GPU memory allocation, and conditional I2C
+echo "[4/8] Configuring boot firmware (Camera, GPU Memory, LCD Mode: $LCD_MODE)..."
 CONFIG_FILE="/boot/firmware/config.txt"
 [ ! -f "$CONFIG_FILE" ] && CONFIG_FILE="/boot/config.txt"
 
 if [ -f "$CONFIG_FILE" ]; then
-    # Enable I2C
-    if ! grep -q "^dtparam=i2c_arm=on" "$CONFIG_FILE"; then
-        echo "dtparam=i2c_arm=on" >> "$CONFIG_FILE"
-    fi
     # Enable Camera
     if ! grep -q "^start_x=1" "$CONFIG_FILE"; then
         echo "start_x=1" >> "$CONFIG_FILE"
@@ -62,14 +72,29 @@ if [ -f "$CONFIG_FILE" ]; then
     else
         echo "gpu_mem=128" >> "$CONFIG_FILE"
     fi
+
+    # Enable I2C only if LCD_MODE=i2c
+    if [ "$LCD_MODE" = "i2c" ]; then
+        echo "Enabling I2C in $CONFIG_FILE for I2C LCD backpack..."
+        if ! grep -q "^dtparam=i2c_arm=on" "$CONFIG_FILE"; then
+            echo "dtparam=i2c_arm=on" >> "$CONFIG_FILE"
+        fi
+    else
+        echo "LCD_MODE is '$LCD_MODE' (parallel 4-bit default): skipping I2C bus activation."
+    fi
 fi
 
-# Load I2C kernel module immediately
-modprobe i2c-dev || true
+# Load I2C kernel module only if using I2C
+if [ "$LCD_MODE" = "i2c" ]; then
+    modprobe i2c-dev || true
+fi
 
 # 5. Add user to hardware groups
-echo "[5/8] Granting hardware permissions (gpio, i2c, video)..."
-usermod -a -G gpio,i2c,video "$REAL_USER" || true
+echo "[5/8] Granting hardware permissions (gpio, video, conditional i2c)..."
+usermod -a -G gpio,video "$REAL_USER" || true
+if [ "$LCD_MODE" = "i2c" ]; then
+    usermod -a -G i2c "$REAL_USER" || true
+fi
 
 # 6. Python Virtual Environment Setup (Lean Pi 3 requirements)
 echo "[6/8] Creating Python virtual environment..."
@@ -98,10 +123,17 @@ MAX_FACES=1
 RECOGNITION_THRESHOLD=0.363
 LIVENESS_CHECK=true
 NOTIFIER_TYPE=console
+LCD_MODE=parallel
+LCD_RS_PIN=25
+LCD_E_PIN=24
+LCD_D4_PIN=5
+LCD_D5_PIN=6
+LCD_D6_PIN=13
+LCD_D7_PIN=19
 LCD_I2C_ADDR=39
-PIN_BUZZER=17
-PIN_LED_GREEN=27
-PIN_LED_RED=22
+PIN_LED_GREEN=17
+PIN_LED_RED=27
+PIN_BUZZER=22
 PIN_BUTTON=23
 EOF"
 fi

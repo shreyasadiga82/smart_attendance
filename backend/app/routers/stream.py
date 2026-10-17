@@ -53,6 +53,7 @@ async def get_db_ws():
         db.close()
 
 
+@router.websocket("/recognition")
 @router.websocket("/ws/recognition")
 async def websocket_recognition_endpoint(
     websocket: WebSocket,
