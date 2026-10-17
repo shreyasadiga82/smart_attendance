@@ -1,0 +1,19 @@
+[Unit]
+Description=Smart Attendance System Server (FastAPI + PWA)
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/smart_attendance/backend
+EnvironmentFile=/home/pi/smart_attendance/backend/.env
+ExecStart=/home/pi/smart_attendance/backend/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

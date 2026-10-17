@@ -71,8 +71,49 @@ class LivenessChecker:
     def _heavy_liveness_check(self, face_id: str, landmarks: np.ndarray) -> bool:
         if landmarks is None or len(landmarks) < 5:
             return False
-        # Placeholder for full laptop check
-        return True
+
+        current_time = time.time()
+        # Landmarks: 0: left_eye, 1: right_eye, 2: nose, 3: left_mouth, 4: right_mouth
+        pts = np.array(landmarks, dtype=np.float32)
+
+        # Inter-ocular distance for normalization
+        eye_dist = np.linalg.norm(pts[0] - pts[1])
+        if eye_dist < 1e-4:
+            return False
+
+        # Nose to eye-center displacement ratio
+        eye_center = (pts[0] + pts[1]) / 2.0
+        nose_offset = np.linalg.norm(pts[2] - eye_center) / eye_dist
+
+        if face_id not in self.history:
+            self.history[face_id] = {
+                'last_offset': nose_offset,
+                'last_time': current_time,
+                'movements': 0
+            }
+            return False
+
+        prev = self.history[face_id]
+        if current_time - prev['last_time'] > 2.5:
+            self.history[face_id] = {
+                'last_offset': nose_offset,
+                'last_time': current_time,
+                'movements': 0
+            }
+            return False
+
+        delta = abs(nose_offset - prev['last_offset'])
+        # Dynamic micro-movement: natural live faces show subtle variation (0.01 to 0.25)
+        if 0.008 < delta < 0.35:
+            prev['movements'] += 1
+        elif delta <= 0.005:
+            # Completely static photo held steady
+            prev['movements'] = max(0, prev['movements'] - 1)
+
+        prev['last_offset'] = nose_offset
+        prev['last_time'] = current_time
+
+        return prev['movements'] >= 2
 
     def clear_history(self, face_id: str):
         if face_id in self.history:

@@ -19,6 +19,14 @@ class HardwareFeedback(abc.ABC):
         pass
 
     @abc.abstractmethod
+    def already_marked(self, msg: str = None) -> None:
+        pass
+
+    @abc.abstractmethod
+    def unknown(self, msg: str = None) -> None:
+        pass
+
+    @abc.abstractmethod
     def failure(self, msg: str = None) -> None:
         pass
 
@@ -42,6 +50,12 @@ class NoopFeedback(HardwareFeedback):
         pass
 
     def success(self, msg: str = None) -> None:
+        pass
+
+    def already_marked(self, msg: str = None) -> None:
+        pass
+
+    def unknown(self, msg: str = None) -> None:
         pass
 
     def failure(self, msg: str = None) -> None:
@@ -129,6 +143,23 @@ class GPIOFeedback(HardwareFeedback):
         if msg:
             self.display_message(msg[:16])
 
+    def already_marked(self, msg: str = None) -> None:
+        if not self._initialized: return
+        self.led_green.on()
+        self._beep(0.1, 1)
+        if msg:
+            self.display_message("Already Marked:", msg[:16])
+        time.sleep(0.5)
+        self.led_green.off()
+
+    def unknown(self, msg: str = None) -> None:
+        if not self._initialized: return
+        self.led_red.on()
+        self._beep(0.4, 1)
+        self.display_message("Not Recognized", msg[:16] if msg else "Try again")
+        time.sleep(0.8)
+        self.led_red.off()
+
     def display_message(self, line1: str, line2: str = "") -> None:
         if not self._initialized or not self.lcd: return
         try:
@@ -142,9 +173,18 @@ class GPIOFeedback(HardwareFeedback):
             logger.error(f"LCD error: {e}")
 
 
+class HardwareFeedbackFactory:
+    @staticmethod
+    def create_feedback() -> HardwareFeedback:
+        if settings.PROFILE == "pi3":
+            try:
+                fb = GPIOFeedback()
+                if fb.init():
+                    return fb
+            except Exception as e:
+                logger.warning(f"Failed to initialize GPIO feedback, falling back to Noop: {e}")
+        return NoopFeedback()
+
+
 def get_feedback() -> HardwareFeedback:
-    if settings.PROFILE == "pi3":
-        fb = GPIOFeedback()
-        if fb.init():
-            return fb
-    return NoopFeedback()
+    return HardwareFeedbackFactory.create_feedback()

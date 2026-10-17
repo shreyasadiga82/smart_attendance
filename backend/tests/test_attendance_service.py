@@ -19,7 +19,7 @@ def attendance_service(db_session):
 
 def test_mark_attendance_success(attendance_service, db_session):
     """Test successful attendance marking"""
-    # Setup
+    attendance_service.session_service.get_current_session = MagicMock(return_value="morning")
     student_id = 1
     target_date = date.today()
     session = "morning"
@@ -52,7 +52,7 @@ def test_mark_attendance_success(attendance_service, db_session):
 
 def test_mark_attendance_already_marked(attendance_service, db_session):
     """Test marking attendance when already marked"""
-    # Setup
+    attendance_service.session_service.get_current_session = MagicMock(return_value="morning")
     student_id = 1
     target_date = date.today()
     session = "morning"
@@ -78,9 +78,34 @@ def test_mark_attendance_already_marked(attendance_service, db_session):
 
 def test_mark_attendance_outside_session(attendance_service, db_session):
     """Test marking attendance outside of session hours"""
-    # We would need to mock the session service, but for simplicity,
-    # we'll test the check_already_marked method instead
-    pass
+    attendance_service.session_service.get_current_session = MagicMock(return_value=None)
+    with pytest.raises(ValueError, match="No active session at this time"):
+        attendance_service.mark_attendance(
+            student_id=1,
+            target_date=date.today(),
+            session="morning"
+        )
+
+
+def test_mark_attendance_cooldown(attendance_service, db_session):
+    """Test 3-second per-person cooldown prevention"""
+    attendance_service.session_service.get_current_session = MagicMock(return_value="morning")
+    db_session.query.return_value.filter.return_value.first.return_value = None
+
+    # First marking succeeds
+    attendance_service.mark_attendance(
+        student_id=10,
+        target_date=date.today(),
+        session="morning"
+    )
+
+    # Immediate second marking triggers cooldown
+    with pytest.raises(ValueError, match="Please wait a moment before trying again"):
+        attendance_service.mark_attendance(
+            student_id=10,
+            target_date=date.today(),
+            session="morning"
+        )
 
 
 def test_check_already_marked(attendance_service, db_session):

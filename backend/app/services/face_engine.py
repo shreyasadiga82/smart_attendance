@@ -264,11 +264,22 @@ class OpenCVSFaceEngine(FaceEngine):
         return best_student_id, float(best_score)
 
 
+class FaceEngineFactory:
+    SUPPORTED_ENGINES = ["opencv_sface", "insightface"]
+
+    @classmethod
+    def create_engine(cls, engine_name: Optional[str] = None) -> FaceEngine:
+        name = engine_name or settings.FACE_ENGINE
+        if name == "opencv_sface":
+            return OpenCVSFaceEngine()
+        elif name == "insightface":
+            return InsightFaceEngine()
+        else:
+            raise ValueError(f"Unsupported face engine: {name}. Supported: {cls.SUPPORTED_ENGINES}")
+
+
 def get_face_engine() -> FaceEngine:
-    if settings.FACE_ENGINE == "opencv_sface":
-        return OpenCVSFaceEngine()
-    else:
-        return InsightFaceEngine()
+    return FaceEngineFactory.create_engine()
 
 
 engine_instance = None

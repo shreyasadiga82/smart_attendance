@@ -1,0 +1,19 @@
+[Unit]
+Description=Smart Attendance System Raspberry Pi Edge Client
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/smart_attendance/edge
+EnvironmentFile=/home/pi/smart_attendance/edge/.env
+ExecStart=/home/pi/smart_attendance/edge/venv/bin/python pi_client.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

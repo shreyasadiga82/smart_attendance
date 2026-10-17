@@ -6,7 +6,7 @@ import uvicorn
 import logging
 from app.config import settings
 from app.database import engine, Base
-from app.routers import auth, students, enrollment, attendance, reports, settings, dashboard, stream
+from app.routers import auth, students, enrollment, attendance, reports, settings, dashboard, stream, devices
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,6 +48,7 @@ app.include_router(attendance.router, prefix="/api/attendance", tags=["attendanc
 app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
+app.include_router(devices.router, prefix="/api/devices", tags=["devices"])
 app.include_router(stream.router, prefix="/ws", tags=["websocket"])
 
 import os

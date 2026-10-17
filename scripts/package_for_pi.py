@@ -14,9 +14,10 @@ def main():
         print("Error: npm is not installed. Please install Node.js.")
         return
 
-    # Run npm install and npm run build
-    subprocess.run(["npm", "install"], cwd=frontend_dir, check=True)
-    subprocess.run(["npm", "run", "build"], cwd=frontend_dir, check=True)
+    use_shell = (os.name == "nt")
+    if not (frontend_dir / "node_modules").exists():
+        subprocess.run(["npm", "install"], cwd=frontend_dir, check=True, shell=use_shell)
+    subprocess.run(["npm", "run", "build"], cwd=frontend_dir, check=True, shell=use_shell)
     
     print("Packaging for Raspberry Pi...")
     
@@ -91,13 +92,14 @@ WantedBy=multi-user.target
     with open(dist_dir / "smart-attendance-edge.service", "w") as f:
         f.write(svc_edge)
         
-    print("Creating tarball...")
+    print("Creating tarball and zip archives...")
     with tarfile.open("smart_attendance_pi.tar.gz", "w:gz") as tar:
         tar.add(dist_dir, arcname=os.path.basename(dist_dir))
+    
+    shutil.make_archive("smart_attendance_pi", "zip", root_dir=dist_dir.parent, base_dir=dist_dir.name)
         
-    # Clean up the dist directory if you want, but keeping it is fine for preview
     shutil.rmtree(dist_dir)
-    print("Done! Transfer smart_attendance_pi.tar.gz to your Raspberry Pi.")
+    print("Done! Packages created: smart_attendance_pi.tar.gz and smart_attendance_pi.zip")
 
 if __name__ == "__main__":
     main()

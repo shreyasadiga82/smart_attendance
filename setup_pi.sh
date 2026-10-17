@@ -1,44 +1,94 @@
 #!/bin/bash
+# ==============================================================================
+# Smart Attendance System - Raspberry Pi 3 Model B Setup Script
+# Target OS: Raspberry Pi OS Lite (64-bit, Debian Bookworm or Bullseye)
+# Hardware: Raspberry Pi 3 Model B (1GB RAM)
+# NOTE: Does NOT require Node/npm on the Pi; uses prebuilt frontend dist.
+# ==============================================================================
 set -e
 
-echo "==============================================="
-echo "  Smart Attendance System - Raspberry Pi 3 Setup"
-echo "==============================================="
+if [ "$EUID" -ne 0 ]; then
+  echo "[-] Please run as root: sudo ./setup_pi.sh"
+  exit 1
+fi
 
-# Update package lists
-echo "[1/7] Updating package lists..."
-sudo apt-get update
+REAL_USER="${SUDO_USER:-$USER}"
+USER_HOME=$(eval echo "~$REAL_USER")
+INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Install system dependencies
-echo "[2/7] Installing system dependencies..."
-sudo apt-get install -y python3-pip python3-venv python3-dev build-essential \
-  libatlas-base-dev libavcodec-dev libavformat-dev libswscale-dev libv4l-dev \
-  libxvidcore-dev libx264-dev \
-  libgl1-mesa-glx # Needed by some OpenCV operations
+echo "=================================================================="
+echo "  Smart Attendance System - Raspberry Pi 3 Model B Optimizer"
+echo "  Target User: $REAL_USER"
+echo "  Directory:   $INSTALL_DIR"
+echo "=================================================================="
 
-# Setup virtual environment
-echo "[3/7] Setting up Python virtual environment..."
-cd "$(dirname "$0")"
-python3 -m venv venv
-source venv/bin/activate
+# 1. Update OS repositories
+echo "[1/8] Updating apt repositories..."
+apt-get update -y
 
-# Upgrade pip
-python3 -m pip install --upgrade pip setuptools wheel
+# 2. Install native system dependencies
+echo "[2/8] Installing essential hardware and Python libraries..."
+apt-get install -y --no-install-recommends \
+    python3-pip python3-venv python3-dev build-essential \
+    libatlas-base-dev libavcodec-dev libavformat-dev libswscale-dev libv4l-dev \
+    libxvidcore-dev libx264-dev libgl1-mesa-glx i2c-tools python3-smbus \
+    zram-tools libcamera-dev v4l-utils
 
-# Install backend requirements (exclude heavy dependencies for pi3 profile)
-echo "[4/7] Installing Python dependencies..."
-cd backend
-# We remove insightface and onnxruntime from the install for Pi3
-grep -v "insightface" requirements.txt | grep -v "onnxruntime" > requirements_pi.txt
-pip install -r requirements_pi.txt
+# 3. Configure ZRAM Swap (Crucial for 1GB RAM on Pi 3 Model B)
+echo "[3/8] Configuring ZRAM swap for memory efficiency..."
+if [ -f /etc/default/zramswap ]; then
+    sed -i 's/^#*ALLOCATION=.*/ALLOCATION=512/' /etc/default/zramswap
+    sed -i 's/^#*PRIORITY=.*/PRIORITY=100/' /etc/default/zramswap
+    systemctl restart zramswap || true
+fi
 
-# Install OpenCV Headless for Pi
-echo "Installing OpenCV Headless..."
-pip install opencv-python-headless numpy<2
+# 4. Enable I2C, Camera, and GPU memory allocation
+echo "[4/8] Configuring boot firmware (I2C, Camera, GPU Memory)..."
+CONFIG_FILE="/boot/firmware/config.txt"
+[ ! -f "$CONFIG_FILE" ] && CONFIG_FILE="/boot/config.txt"
 
-# Create .env for Raspberry Pi
-echo "[5/7] Creating .env file for Pi 3 Profile..."
-cat << EOF > .env
+if [ -f "$CONFIG_FILE" ]; then
+    # Enable I2C
+    if ! grep -q "^dtparam=i2c_arm=on" "$CONFIG_FILE"; then
+        echo "dtparam=i2c_arm=on" >> "$CONFIG_FILE"
+    fi
+    # Enable Camera
+    if ! grep -q "^start_x=1" "$CONFIG_FILE"; then
+        echo "start_x=1" >> "$CONFIG_FILE"
+    fi
+    # Allocate 128MB GPU memory for video buffer
+    if grep -q "^gpu_mem=" "$CONFIG_FILE"; then
+        sed -i 's/^gpu_mem=.*/gpu_mem=128/' "$CONFIG_FILE"
+    else
+        echo "gpu_mem=128" >> "$CONFIG_FILE"
+    fi
+fi
+
+# Load I2C kernel module immediately
+modprobe i2c-dev || true
+
+# 5. Add user to hardware groups
+echo "[5/8] Granting hardware permissions (gpio, i2c, video)..."
+usermod -a -G gpio,i2c,video "$REAL_USER" || true
+
+# 6. Python Virtual Environment Setup (Lean Pi 3 requirements)
+echo "[6/8] Creating Python virtual environment..."
+cd "$INSTALL_DIR/backend"
+if [ ! -d "venv" ]; then
+    sudo -u "$REAL_USER" python3 -m venv venv
+fi
+
+sudo -u "$REAL_USER" "$INSTALL_DIR/backend/venv/bin/pip" install --upgrade pip setuptools wheel
+if [ -f "requirements-pi.txt" ]; then
+    sudo -u "$REAL_USER" "$INSTALL_DIR/backend/venv/bin/pip" install -r requirements-pi.txt
+else
+    sudo -u "$REAL_USER" "$INSTALL_DIR/backend/venv/bin/pip" install -r requirements.txt
+fi
+
+# 7. Configure Pi 3 Profile Environment
+echo "[7/8] Generating .env configuration for Pi 3 profile..."
+if [ ! -f "$INSTALL_DIR/backend/.env" ]; then
+    sudo -u "$REAL_USER" bash -c "cat << 'EOF' > '$INSTALL_DIR/backend/.env'
 PROFILE=pi3
 FACE_ENGINE=opencv_sface
 STREAM_FPS=2
@@ -46,50 +96,30 @@ FRAME_WIDTH=320
 DETECT_EVERY_N_FRAMES=3
 MAX_FACES=1
 RECOGNITION_THRESHOLD=0.363
-EOF
-
-cd ..
-
-# Build frontend
-echo "[6/7] Building Frontend..."
-# Check for Node.js
-if ! command -v npm &> /dev/null
-then
-    echo "Node.js not found. Installing Node.js..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo apt-get install -y nodejs
+LIVENESS_CHECK=true
+NOTIFIER_TYPE=console
+LCD_I2C_ADDR=39
+PIN_BUZZER=17
+PIN_LED_GREEN=27
+PIN_LED_RED=22
+PIN_BUTTON=23
+EOF"
 fi
 
-cd frontend
-npm install
-npm run build
-cd ..
+# 8. Install Systemd Services
+echo "[8/8] Installing systemd services..."
+if [ -f "$INSTALL_DIR/scripts/systemd/smart-attendance.service" ]; then
+    cp "$INSTALL_DIR/scripts/systemd/smart-attendance.service" /etc/systemd/system/
+    sed -i "s|/home/pi/smart_attendance|$INSTALL_DIR|g" /etc/systemd/system/smart-attendance.service
+    sed -i "s|User=pi|User=$REAL_USER|g" /etc/systemd/system/smart-attendance.service
+    sed -i "s|Group=pi|Group=$REAL_USER|g" /etc/systemd/system/smart-attendance.service
+    systemctl daemon-reload
+    systemctl enable smart-attendance.service || true
+fi
 
-# Create Systemd Service
-echo "[7/7] Setting up systemd service..."
-SERVICE_FILE="/etc/systemd/system/smart-attendance.service"
-sudo bash -c "cat << EOF > $SERVICE_FILE
-[Unit]
-Description=Smart Attendance FastAPI Service
-After=network.target
-
-[Service]
-User=$USER
-WorkingDirectory=$(pwd)/backend
-Environment=\"PATH=$(pwd)/venv/bin\"
-EnvironmentFile=$(pwd)/backend/.env
-ExecStart=$(pwd)/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF"
-
-sudo systemctl daemon-reload
-sudo systemctl enable smart-attendance.service
-
-echo "==============================================="
-echo "Setup Complete!"
-echo "To start the system, run: sudo systemctl start smart-attendance.service"
-echo "To view logs, run: sudo journalctl -fu smart-attendance.service"
-echo "==============================================="
+echo "=================================================================="
+echo "  Raspberry Pi 3 Setup Complete!"
+echo "  Note: Frontend uses prebuilt dist from packaging (no npm required)."
+echo "  To launch: sudo systemctl start smart-attendance.service"
+echo "  To monitor: sudo journalctl -u smart-attendance.service -f"
+echo "=================================================================="

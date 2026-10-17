@@ -50,6 +50,8 @@ def test_generate_report_with_data(db_session, report_service):
         session="morning",
         timestamp=datetime(2026, 10, 1, 8, 30)
     )
+    attendance1.student = student1
+
     attendance2 = Attendance(
         id=2,
         student_id=1,
@@ -57,6 +59,8 @@ def test_generate_report_with_data(db_session, report_service):
         session="afternoon",
         timestamp=datetime(2026, 10, 1, 13, 30)
     )
+    attendance2.student = student1
+
     attendance3 = Attendance(
         id=3,
         student_id=2,
@@ -64,6 +68,7 @@ def test_generate_report_with_data(db_session, report_service):
         session="morning",
         timestamp=datetime(2026, 10, 1, 8, 45)
     )
+    attendance3.student = student2
 
     # Mock the query to return our sample data
     mock_query = MagicMock()
@@ -83,6 +88,10 @@ def test_generate_report_with_data(db_session, report_service):
     # Actually, our current implementation creates one row per student per day
     # So we expect 2 rows
     assert len(result.rows) == 2
+    # Verify rows are strictly sorted by roll number
+    assert [r.roll_no for r in result.rows] == sorted([r.roll_no for r in result.rows])
+    assert result.rows[0].roll_no == "001"
+    assert result.rows[1].roll_no == "002"
 
     # Check that the summary is correct
     assert result.summary["total_students"] == 2
@@ -103,6 +112,7 @@ def test_export_to_csv(db_session, report_service):
         session="morning",
         timestamp=datetime(2026, 10, 1, 8, 30)
     )
+    attendance1.student = student1
 
     mock_query = MagicMock()
     mock_query.join.return_value = mock_query
