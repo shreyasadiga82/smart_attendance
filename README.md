@@ -383,6 +383,7 @@ smart_attendance/
 │   ├── make_cert.py               # Local SSL certificate generator
 │   ├── create_admin.py            # Initial administrator creation
 │   ├── seed_demo.py               # Sample database population
+│   ├── clean_demo_data.py         # Production readiness database reset
 │   └── package_for_pi.py          # Bundle packager for Raspberry Pi OS
 │
 ├── run.bat                        # Windows CMD 1-click runner
@@ -390,6 +391,31 @@ smart_attendance/
 ├── run.sh                         # Linux / macOS 1-click runner
 └── setup_pi.sh                    # Raspberry Pi OS system setup script
 ```
+
+---
+
+## ⚡ Production Readiness & Real-World Usage
+
+### 1. Removing Demo Data
+To wipe demo students and test attendance records before real deployment:
+- **Via Admin UI**: Navigate to **Settings → Danger Zone**, click **Wipe Demo Data & Prepare for Real Usage**, and confirm.
+- **Via CLI**:
+  ```bash
+  python scripts/clean_demo_data.py
+  ```
+*This safely deletes dummy records while preserving the `admin` (`admin123`) and `teacher` (`teacher123`) accounts.*
+
+### 2. High-Accuracy Face Verification
+The facial recognition engine incorporates enterprise-grade accuracy features:
+- **Multi-Sample Weighted Composite Scoring**: Compares live face crops against all enrolled reference vectors per student using a `0.75 * best + 0.25 * second_best` weighted similarity formula.
+- **Ambiguity & Lookalike Margin Rejection**: Rejects identification if the confidence difference between the top candidate and runner-up is below the ambiguity margin (`0.035`), preventing false-positive lookalike matches.
+- **Auto-Camera Selection**: Dynamically detects built-in webcams and external cameras, with an interactive on-screen device picker.
+
+### 3. Supabase Cloud Sync (Optional)
+Sync local records and rosters seamlessly to Supabase PostgreSQL:
+1. Obtain your Supabase Project URL and API Key (`anon` or `service_role`).
+2. Enter them in **Settings → Supabase Cloud Sync** and click **Test Connection**.
+3. Toggle **Enable Supabase Cloud Sync** and **Auto Sync on Attendance** for real-time cloud mirroring with zero local latency.
 
 ---
 

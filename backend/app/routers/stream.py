@@ -125,24 +125,27 @@ async def websocket_recognition_endpoint(
                                 today = date.today()
                                 session_service = __import__('app.services.session_service', fromlist=['SessionService']).SessionService()
                                 current_session = session_service.get_current_session()
-                                if current_session:
-                                    attendance_service = AttendanceService(db)
-                                    already_marked = attendance_service.check_already_marked(
-                                        student_id=student_id,
-                                        date=today,
-                                        session=current_session
-                                    )
-                                    if already_marked:
-                                        status = "already_marked"
-                                    else:
+                                effective_session = current_session or "morning"
+                                attendance_service = AttendanceService(db)
+                                already_marked = attendance_service.check_already_marked(
+                                    student_id=student_id,
+                                    date=today,
+                                    session=effective_session
+                                )
+                                if already_marked:
+                                    status = "already_marked"
+                                else:
+                                    try:
                                         attendance_service.mark_attendance(
                                             student_id=student_id,
                                             date=today,
-                                            session=current_session,
+                                            session=effective_session,
                                             method="auto",
-                                            note=f"Recognized with confidence {confidence:.2f}"
+                                            note=f"Face recognized with confidence {confidence * 100:.1f}%"
                                         )
                                         status = "marked"
+                                    except Exception:
+                                        status = "already_marked"
                         else:
                             status = "unknown"
 

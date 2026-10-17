@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "sqlite:///./data/attendance.db"
 
+    # Supabase Cloud Sync
+    SUPABASE_ENABLED: bool = False
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_KEY: Optional[str] = None
+    SUPABASE_SYNC_AUTO: bool = True
+
     # Face recognition (defaults set in model_validator based on PROFILE)
     FACE_ENGINE: Optional[str] = None
     STREAM_FPS: Optional[int] = None

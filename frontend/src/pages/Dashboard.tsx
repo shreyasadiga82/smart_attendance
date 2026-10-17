@@ -36,7 +36,11 @@ interface DashboardData {
   }[]
 }
 
+import { useNavigate } from 'react-router-dom'
+import { Video, UserPlus, Users, BarChart2, GraduationCap } from 'lucide-react'
+
 export const Dashboard = () => {
+  const navigate = useNavigate()
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -158,20 +162,53 @@ export const Dashboard = () => {
           </div>
         </Card>
         {/* Quick actions */}
-        <Card>
-          <h3 className="text-lg font-medium mb-4">Quick Actions</h3>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Button variant="primary" size="sm" className="w-full">
-              Take Attendance
+        <Card className="col-span-2">
+          <h3 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-3">Quick Actions</h3>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <Button
+              variant="primary"
+              size="sm"
+              className="w-full justify-center"
+              onClick={() => navigate('/live')}
+            >
+              <Video className="w-4 h-4 mr-1.5" />
+              Live Camera
             </Button>
-            <Button variant="outline" size="sm" className="w-full">
-              Enroll Student
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-center"
+              onClick={() => navigate('/teacher')}
+            >
+              <GraduationCap className="w-4 h-4 mr-1.5 text-emerald-600" />
+              Teacher Portal
             </Button>
-            <Button variant="outline" size="sm" className="w-full">
-              View Students
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-center"
+              onClick={() => navigate('/students')}
+            >
+              <Users className="w-4 h-4 mr-1.5" />
+              Manage Students
             </Button>
-            <Button variant="outline" size="sm" className="w-full">
-              Generate Report
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-center"
+              onClick={() => navigate('/enroll')}
+            >
+              <UserPlus className="w-4 h-4 mr-1.5" />
+              Enroll Wizard
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-center"
+              onClick={() => navigate('/reports')}
+            >
+              <BarChart2 className="w-4 h-4 mr-1.5" />
+              Export Reports
             </Button>
           </div>
         </Card>

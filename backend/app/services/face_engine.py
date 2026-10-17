@@ -122,18 +122,42 @@ class InsightFaceEngine(FaceEngine):
     def match_embedding(self, embedding: np.ndarray) -> Tuple[Optional[int], float]:
         if self.model is None or len(self.embeddings) == 0:
             return None, 0.0
-        embedding_norm = embedding / np.linalg.norm(embedding)
-        best_score = -1
+        embedding_norm = embedding / (np.linalg.norm(embedding) or 1.0)
+        best_score = -1.0
+        second_best_score = -1.0
         best_student_id = None
+
         for student_id, embeddings_list in self.embeddings.items():
+            if not embeddings_list:
+                continue
+            similarities = []
             for known_embedding in embeddings_list:
-                known_norm = known_embedding / np.linalg.norm(known_embedding)
-                similarity = np.dot(embedding_norm, known_norm)
-                if similarity > best_score:
-                    best_score = similarity
-                    best_student_id = student_id
+                known_norm = known_embedding / (np.linalg.norm(known_embedding) or 1.0)
+                sim = float(np.dot(embedding_norm, known_norm))
+                similarities.append(sim)
+
+            # High-accuracy composite score: best sample with secondary support
+            similarities.sort(reverse=True)
+            if len(similarities) >= 2:
+                student_score = 0.75 * similarities[0] + 0.25 * similarities[1]
+            else:
+                student_score = similarities[0]
+
+            if student_score > best_score:
+                second_best_score = best_score
+                best_score = student_score
+                best_student_id = student_id
+            elif student_score > second_best_score:
+                second_best_score = student_score
+
         if best_score < self.threshold:
             return None, float(best_score)
+
+        # Ambiguity margin check: prevent false-positives when two different students score similarly
+        if second_best_score > 0 and (best_score - second_best_score) < 0.035 and best_score < 0.65:
+            logger.info(f"Ambiguous match rejected: 1st={best_score:.3f}, 2nd={second_best_score:.3f}")
+            return None, float(best_score)
+
         return best_student_id, float(best_score)
 
 
@@ -244,23 +268,43 @@ class OpenCVSFaceEngine(FaceEngine):
     def match_embedding(self, embedding: np.ndarray) -> Tuple[Optional[int], float]:
         if self.recognizer is None or len(self.embeddings) == 0:
             return None, 0.0
-            
-        best_score = -1
+
+        best_score = -1.0
+        second_best_score = -1.0
         best_student_id = None
-        
+
         for student_id, embeddings_list in self.embeddings.items():
+            if not embeddings_list:
+                continue
+            similarities = []
             for known_embedding in embeddings_list:
-                similarity = self.recognizer.match(
+                sim = float(self.recognizer.match(
                     embedding.reshape(1, -1),
                     known_embedding.reshape(1, -1),
                     cv2.FaceRecognizerSF_FR_COSINE
-                )
-                if similarity > best_score:
-                    best_score = similarity
-                    best_student_id = student_id
-                    
+                ))
+                similarities.append(sim)
+
+            similarities.sort(reverse=True)
+            if len(similarities) >= 2:
+                student_score = 0.75 * similarities[0] + 0.25 * similarities[1]
+            else:
+                student_score = similarities[0]
+
+            if student_score > best_score:
+                second_best_score = best_score
+                best_score = student_score
+                best_student_id = student_id
+            elif student_score > second_best_score:
+                second_best_score = student_score
+
         if best_score < self.threshold:
             return None, float(best_score)
+
+        if second_best_score > 0 and (best_score - second_best_score) < 0.035 and best_score < 0.60:
+            logger.info(f"Ambiguous SFace match rejected: 1st={best_score:.3f}, 2nd={second_best_score:.3f}")
+            return None, float(best_score)
+
         return best_student_id, float(best_score)
 
 

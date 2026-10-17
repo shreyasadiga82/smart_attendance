@@ -3,6 +3,7 @@ from typing import Optional, List
 from app.models import Attendance, Student
 from app.schemas import AttendanceCreate
 from app.services.session_service import SessionService
+from app.services.supabase_service import supabase_service
 from app.config import settings
 from datetime import date, datetime
 import logging
@@ -27,19 +28,22 @@ class AttendanceService:
     ) -> Attendance:
         """
         Mark attendance for a student.
-        Raises ValueError if already marked or outside session.
+        Raises ValueError if already marked or within rapid duplicate cooldown.
+        Supports automatic session fallback for off-hour classes/demos.
         """
         target_date = target_date or date or datetime.now().date()
+
         # Check if session is active
         current_session = self.session_service.get_current_session()
-        if current_session is None:
+        if method == "auto" and current_session is None:
             raise ValueError("No active session at this time")
 
-        # Check if the provided session matches current session
-        if session != current_session:
-            raise ValueError(f"Current session is {current_session}, not {session}")
+        if current_session:
+            session = current_session
+        elif not session:
+            session = "morning"
 
-        # Check for duplicate attendance (unique constraint will also catch this)
+        # Check for duplicate attendance
         existing = self.db.query(Attendance).filter(
             Attendance.student_id == student_id,
             Attendance.date == target_date,
@@ -70,7 +74,23 @@ class AttendanceService:
         # Update cooldown
         self.cooldown[student_id] = now
 
-        logger.info(f"Attendance marked for student {student_id} at {now}")
+        logger.info(f"Attendance marked: student {student_id}, session {session}, method {method}")
+
+        # Async cloud sync to Supabase if configured
+        try:
+            if supabase_service.enabled:
+                student = self.db.query(Student).filter(Student.id == student_id).first()
+                supabase_service.sync_attendance_record({
+                    "roll_no": student.roll_no if student else str(student_id),
+                    "date": target_date.isoformat() if hasattr(target_date, 'isoformat') else str(target_date),
+                    "session": session,
+                    "timestamp": now.isoformat(),
+                    "method": method,
+                    "note": note
+                })
+        except Exception as e:
+            logger.warning(f"Background Supabase sync failed: {e}")
+
         return db_attendance
 
     def check_already_marked(

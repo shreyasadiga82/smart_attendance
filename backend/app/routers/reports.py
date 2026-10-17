@@ -14,6 +14,31 @@ import os
 router = APIRouter()
 
 
+@router.get("/", response_model=ReportData)
+async def read_report_get(
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    class_name: Optional[str] = None,
+    session: Optional[str] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    if not start_date:
+        start_date = date.today().replace(day=1)
+    if not end_date:
+        end_date = date.today()
+
+    report_service = ReportService(db)
+    return report_service.generate_report(
+        start_date=start_date,
+        end_date=end_date,
+        class_name=class_name,
+        session=session,
+        status=status
+    )
+
+
 @router.post("/", response_model=ReportData)
 async def generate_report(
     report_filter: ReportFilter,
