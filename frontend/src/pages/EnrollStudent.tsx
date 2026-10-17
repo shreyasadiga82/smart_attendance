@@ -364,7 +364,7 @@ export const EnrollStudent = () => {
                 </Button>
                 <Button
                   variant="primary"
-                  onClick={submitEnrollment}
+                  onClick={handleSubmit}
                   loading={loading}
                 >
                   Submit Enrollment

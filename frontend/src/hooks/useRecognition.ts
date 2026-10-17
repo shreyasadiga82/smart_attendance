@@ -4,7 +4,7 @@ import { useCamera } from './useCamera'
 
 interface RecognitionResult {
   bbox: number[] // [x1, y1, x2, y2]
-  confidence: float
+  confidence: number
   studentId: number | null
   studentName: string | null
   rollNo: string | null

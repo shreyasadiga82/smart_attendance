@@ -18,10 +18,11 @@ export const SessionDonut = ({ data }: SessionDonutProps) => {
       <PieChart>
         <Pie
           data={data}
+          dataKey="value"
           cx="50%"
           cy="50%"
           labelLine={false}
-          label={({ name, value, percent }) => `${name}: ${Math.round(percent)}%`}
+          label={({ name, percent }) => `${name}: ${Math.round((percent || 0) * 100)}%`}
           innerRadius="60%"
           outerRadius="80%"
           paddingAngle={2}

@@ -35,12 +35,17 @@ async def mark_attendance(
 
 
 @router.get("/", response_model=List[AttendanceWithStudent])
+@router.get("/records", response_model=List[AttendanceWithStudent])
 async def read_attendance(
     skip: int = 0,
     limit: int = 100,
     student_id: Optional[int] = None,
     target_date: Optional[date] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    class_name: Optional[str] = None,
     session: Optional[str] = None,
+    status: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -49,9 +54,15 @@ async def read_attendance(
         query = query.filter(Attendance.student_id == student_id)
     if target_date:
         query = query.filter(Attendance.date == target_date)
+    if start_date:
+        query = query.filter(Attendance.date >= start_date)
+    if end_date:
+        query = query.filter(Attendance.date <= end_date)
+    if class_name:
+        query = query.filter(Student.class_name == class_name)
     if session:
         query = query.filter(Attendance.session == session)
-    attendance_records = query.offset(skip).limit(limit).all()
+    attendance_records = query.order_by(Attendance.timestamp.desc()).offset(skip).limit(limit).all()
     return attendance_records
 
 

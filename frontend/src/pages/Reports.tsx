@@ -5,6 +5,7 @@ import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { Chip } from '../components/ui/Chip'
 import { useAuth } from '../lib/auth'
+import { apiRequest, getAuthToken } from '../lib/api'
 
 interface ReportData {
   rows: {
@@ -55,11 +56,7 @@ export const Reports = () => {
         if (filters.session) params.append('session', filters.session)
         if (filters.status) params.append('status', filters.status)
 
-        const response = await fetch(`/api/reports/?${params.toString()}`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch report')
-        }
-        const data = await response.json()
+        const data = await apiRequest<ReportData>(`/reports/?${params.toString()}`)
         setReportData(data)
       } catch (err: any) {
         setError(err.message || 'Something went wrong')
@@ -247,7 +244,7 @@ export const Reports = () => {
               ))
             ) : (
               <tr>
-                <td className="px-6 py-12 text-center text-gray-500 dark:text-gray-400" colSpan="6">
+                <td className="px-6 py-12 text-center text-gray-500 dark:text-gray-400" colSpan={6}>
                   No data found
                 </td>
               </tr>

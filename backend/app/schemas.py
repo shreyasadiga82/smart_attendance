@@ -24,9 +24,11 @@ class UserInDBBase(UserBase):
     id: int
     is_active: bool
     is_admin: bool
+    role: str = "teacher"
     created_at: datetime
 
     class Config:
+        from_attributes = True
         orm_mode = True
 
 
@@ -37,6 +39,8 @@ class UserInDB(UserInDBBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    role: Optional[str] = "admin"
+    username: Optional[str] = None
 
 
 class TokenData(BaseModel):
@@ -67,8 +71,12 @@ class StudentInDBBase(StudentBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
+    biometrics_count: int = 0
+    is_enrolled: bool = False
+    last_biometric_at: Optional[datetime] = None
 
     class Config:
+        from_attributes = True
         orm_mode = True
 
 
@@ -78,6 +86,22 @@ class StudentInDB(StudentInDBBase):
 
 class StudentWithAvatar(StudentInDB):
     avatar_url: Optional[str] = None
+
+
+class BiometricInfo(BaseModel):
+    student_id: int
+    roll_no: str
+    name: str
+    class_name: str
+    biometrics_count: int
+    is_enrolled: bool
+    last_biometric_at: Optional[datetime] = None
+    engine: Optional[str] = "insightface"
+    dimension: Optional[int] = 512
+
+
+class AddBiometricsRequest(BaseModel):
+    images: List[str]
 
 
 # Attendance schemas

@@ -1,7 +1,7 @@
 import React from 'react'
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  label: string
+  label?: string
   error?: string
   helperText?: string
 }
@@ -15,9 +15,11 @@ export const Select = ({
 }: SelectProps) => {
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-        {label}
-      </label>
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          {label}
+        </label>
+      )}
       <div className="relative">
         <select
           className={`

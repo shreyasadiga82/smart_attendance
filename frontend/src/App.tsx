@@ -2,6 +2,7 @@ import React from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
+import { TeacherDashboard } from './pages/TeacherDashboard'
 import { LiveAttendance } from './pages/LiveAttendance'
 import { EnrollStudent } from './pages/EnrollStudent'
 import { Students } from './pages/Students'
@@ -42,10 +43,14 @@ function App() {
       </nav>
 
       {/* Page content */}
-      <div className="flex-1 p-6">
+      <main className="flex-1 overflow-x-hidden pb-16 md:pb-6">
         <Routes>
           <Route path="/login" element={<Navigate to="/" replace />} />
-          <Route path="/" element={<Dashboard />} />
+          <Route
+            path="/"
+            element={user.role === 'teacher' ? <TeacherDashboard /> : <Dashboard />}
+          />
+          <Route path="/teacher" element={<TeacherDashboard />} />
           <Route path="/live" element={<LiveAttendance />} />
           <Route path="/enroll" element={<EnrollStudent />} />
           <Route path="/students" element={<Students />} />
@@ -54,7 +59,7 @@ function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </div>
+      </main>
     </AppShell>
   )
 }

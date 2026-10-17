@@ -13,16 +13,13 @@ export const Skeleton = ({
   height = '1rem',
   variant = 'rectangular'
 }: SkeletonProps) => {
-  // Animation keyframes for shimmer effect
   return (
     <div
-      className={`
-        animate-pulse
-        bg-gray-300 dark:bg-gray-600
-        rounded
-        ${className || ''}
-        style={{ width: typeof width === 'number' ? `${width}px` : width, height: typeof height === 'number' ? `${height}px` : height }}
-      `}
+      className={`animate-pulse bg-gray-300 dark:bg-gray-600 rounded ${className}`}
+      style={{
+        width: typeof width === 'number' ? `${width}px` : width,
+        height: typeof height === 'number' ? `${height}px` : height
+      }}
     >
       {variant === 'circular' && (
         <div className="h-full w-full rounded-full" />

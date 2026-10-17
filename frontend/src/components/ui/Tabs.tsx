@@ -14,6 +14,9 @@ interface TabListProps {
 interface TabProps {
   className?: string
   children: React.ReactNode
+  index?: number
+  isActive?: boolean
+  onClick?: () => void
 }
 
 interface TabPanelProps {

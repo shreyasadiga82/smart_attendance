@@ -37,7 +37,7 @@ export const Dialog = ({
       {/* Dialog */}
       <div className="fixed z-50 inset-0 overflow-y-auto">
         <div className="flex min-h-full items-end justify-center p-4 pointer-events-none">
-          <div className="relative pointer-events-auto w-full max-w-md">
+          <div className={`relative pointer-events-auto w-full ${className || 'max-w-md'}`}>
             {/* Content */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl px-4 pt-5 pb-4">
               <div className="flex justify-between items-start pb-3">

@@ -12,6 +12,8 @@ from datetime import timedelta
 router = APIRouter()
 
 
+from app.deps import get_current_active_user
+
 @router.post("/token", response_model=Token)
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -25,10 +27,17 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    role = "admin" if user.is_admin else "teacher"
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": user.username, "role": role, "is_admin": user.is_admin},
+        expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "role": role,
+        "username": user.username
+    }
 
 
 @router.post("/register", response_model=UserInDB)
@@ -59,8 +68,7 @@ async def register_user(
 
 @router.get("/me", response_model=UserInDB)
 async def read_current_user(
-    current_user: User = Depends(lambda: None)  # We'll implement dependency later
+    current_user: User = Depends(get_current_active_user)
 ):
-    # This is a placeholder; we'll implement the actual dependency in main.py or as a separate dependency
-    # For now, we'll return a dummy user
+    current_user.role = "admin" if current_user.is_admin else "teacher"
     return current_user

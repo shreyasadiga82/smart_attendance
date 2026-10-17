@@ -6,6 +6,7 @@ import { Chip } from '../components/ui/Chip'
 import { Avatar } from '../components/ui/Avatar'
 import { useAuth } from '../lib/auth'
 import { useEffect, useState } from 'react'
+import { apiRequest } from '../lib/api'
 
 interface MarkedStudent {
   id: number
@@ -25,11 +26,7 @@ export const LiveAttendance = () => {
     const fetchMarked = async () => {
       try {
         setLoading(true)
-        const response = await fetch('/api/attendance/today')
-        if (!response.ok) {
-          throw new Error('Failed to fetch marked students')
-        }
-        const data = await response.json()
+        const data = await apiRequest<MarkedStudent[]>('/attendance/today')
         setMarkedStudents(data)
       } catch (err: any) {
         setError(err.message || 'Something went wrong')

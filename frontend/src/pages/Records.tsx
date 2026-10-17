@@ -4,7 +4,9 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { Chip } from '../components/ui/Chip'
+import { Avatar } from '../components/ui/Avatar'
 import { useAuth } from '../lib/auth'
+import { apiRequest } from '../lib/api'
 
 interface AttendanceRecord {
   id: number
@@ -51,11 +53,7 @@ export const Records = () => {
         if (filters.session) params.append('session', filters.session)
         if (filters.status) params.append('status', filters.status)
 
-        const response = await fetch(`/api/attendance/?${params.toString()}`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch records')
-        }
-        const data = await response.json()
+        const data = await apiRequest<AttendanceRecord[]>(`/attendance/?${params.toString()}`)
         setRecords(data)
       } catch (err: any) {
         setError(err.message || 'Something went wrong')
@@ -269,7 +267,7 @@ export const Records = () => {
               ))
             ) : (
               <tr>
-                <td className="px-6 py-12 text-center text-gray-500 dark:text-gray-400" colSpan="8">
+                <td className="px-6 py-12 text-center text-gray-500 dark:text-gray-400" colSpan={8}>
                   No records found
                 </td>
               </tr>

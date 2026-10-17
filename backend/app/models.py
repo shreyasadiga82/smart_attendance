@@ -35,8 +35,8 @@ class Student(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    # face_embeddings = relationship("FaceEmbedding", back_populates="student", cascade="all, delete-orphan")
-    # attendance_records = relationship("Attendance", back_populates="student", cascade="all, delete-orphan")
+    face_embeddings = relationship("FaceEmbedding", back_populates="student", cascade="all, delete-orphan")
+    attendance_records = relationship("Attendance", back_populates="student", cascade="all, delete-orphan")
 
 
 class FaceEmbedding(Base):
@@ -50,7 +50,7 @@ class FaceEmbedding(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
-    # student = relationship("Student", back_populates="face_embeddings")
+    student = relationship("Student", back_populates="face_embeddings")
 
 
 class Attendance(Base):
@@ -66,7 +66,7 @@ class Attendance(Base):
     __table_args__ = (UniqueConstraint('student_id', 'date', 'session', name='_student_date_session_uc'),)
 
     # Relationships
-    # student = relationship("Student", back_populates="attendance_records")
+    student = relationship("Student", back_populates="attendance_records")
 
 
 class NotificationLog(Base):

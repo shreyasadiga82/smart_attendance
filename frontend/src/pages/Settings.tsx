@@ -6,6 +6,7 @@ import { Select } from '../components/ui/Select'
 import { Switch } from '../components/ui/Switch'
 import { Chip } from '../components/ui/Chip'
 import { useAuth } from '../lib/auth'
+import { apiRequest } from '../lib/api'
 
 interface SettingsData {
   // This would match the backend settings structure
@@ -43,11 +44,7 @@ export const Settings = () => {
     const fetchSettings = async () => {
       try {
         setLoading(true)
-        const response = await fetch('/api/settings/')
-        if (!response.ok) {
-          throw new Error('Failed to fetch settings')
-        }
-        const data = await response.json()
+        const data = await apiRequest<SettingsData>('/settings/')
         setSettings(data)
       } catch (err: any) {
         setError(err.message || 'Something went wrong')
@@ -83,6 +80,10 @@ export const Settings = () => {
 
   const handleToastClose = () => {
     setShowToast(false)
+  }
+
+  const updateSetting = (key: keyof SettingsData, value: any) => {
+    setSettings((prev) => (prev ? { ...prev, [key]: value } : prev))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -129,7 +130,7 @@ export const Settings = () => {
               <Input
                 type="time"
                 value={settingsData.morning_session_start}
-                onChange={(e) => setSettings(prev => ({ ...prev, morning_session_start: e.target.value }))}
+                onChange={(e) => updateSetting('morning_session_start', e.target.value)}
                 className="w-full"
               />
             </div>
@@ -140,7 +141,7 @@ export const Settings = () => {
               <Input
                 type="time"
                 value={settingsData.morning_session_end}
-                onChange={(e) => setSettings(prev => ({ ...prev, morning_session_end: e.target.value }))}
+                onChange={(e) => updateSetting('morning_session_end', e.target.value)}
                 className="w-full"
               />
             </div>
@@ -151,7 +152,7 @@ export const Settings = () => {
               <Input
                 type="time"
                 value={settingsData.afternoon_session_start}
-                onChange={(e) => setSettings(prev => ({ ...prev, afternoon_session_start: e.target.value }))}
+                onChange={(e) => updateSetting('afternoon_session_start', e.target.value)}
                 className="w-full"
               />
             </div>
@@ -162,7 +163,7 @@ export const Settings = () => {
               <Input
                 type="time"
                 value={settingsData.afternoon_session_end}
-                onChange={(e) => setSettings(prev => ({ ...prev, afternoon_session_end: e.target.value }))}
+                onChange={(e) => updateSetting('afternoon_session_end', e.target.value)}
                 className="w-full"
               />
             </div>
@@ -180,9 +181,7 @@ export const Settings = () => {
               <Switch
                 checked={settingsData.recognition_threshold > 0.4} // Just an example
                 onChange={(value) => {
-                  // Update threshold based on switch? Actually, we need a slider
-                  // For now, we'll just toggle between two values
-                  setSettings(prev => ({ ...prev, recognition_threshold: value ? 0.6 : 0.4 }))
+                  updateSetting('recognition_threshold', value ? 0.6 : 0.4)
                 }}
                 checkedChildren="High (0.6)"
                 uncheckedChildren="Normal (0.4)"
@@ -194,7 +193,7 @@ export const Settings = () => {
               </label>
               <Switch
                 checked={settingsData.liveness_check}
-                onChange={(value) => setSettings(prev => ({ ...prev, liveness_check: value }))}
+                onChange={(value) => updateSetting('liveness_check', value)}
                 checkedChildren="Enabled"
                 uncheckedChildren="Disabled"
               />
@@ -213,7 +212,7 @@ export const Settings = () => {
               <Input
                 type="email"
                 value={settingsData.teacher_email || ''}
-                onChange={(e) => setSettings(prev => ({ ...prev, teacher_email: e.target.value || null }))}
+                onChange={(e) => updateSetting('teacher_email', e.target.value || null)}
                 className="w-full"
                 placeholder="Enter teacher email"
               />
@@ -224,7 +223,7 @@ export const Settings = () => {
               </label>
               <Select
                 value={settingsData.notifier_type}
-                onChange={(e) => setSettings(prev => ({ ...prev, notifier_type: e.target.value }))}
+                onChange={(e) => updateSetting('notifier_type', e.target.value)}
                 className="w-full"
               >
                 <option value="console">Console (Default)</option>
@@ -243,7 +242,7 @@ export const Settings = () => {
                   <Input
                     type="password"
                     value={settingsData.whatsapp_token || ''}
-                    onChange={(e) => setSettings(prev => ({ ...prev, whatsapp_token: e.target.value }))}
+                    onChange={(e) => updateSetting('whatsapp_token', e.target.value)}
                     className="w-full"
                   />
                 </div>
@@ -253,7 +252,7 @@ export const Settings = () => {
                   </label>
                   <Input
                     value={settingsData.whatsapp_phone_number_id || ''}
-                    onChange={(e) => setSettings(prev => ({ ...prev, whatsapp_phone_number_id: e.target.value }))}
+                    onChange={(e) => updateSetting('whatsapp_phone_number_id', e.target.value)}
                     className="w-full"
                   />
                 </div>
@@ -267,7 +266,7 @@ export const Settings = () => {
                 <Input
                   type="password"
                   value={settingsData.fast2sms_api_key || ''}
-                  onChange={(e) => setSettings(prev => ({ ...prev, fast2sms_api_key: e.target.value }))}
+                  onChange={(e) => updateSetting('fast2sms_api_key', e.target.value)}
                   className="w-full"
                 />
               </div>
@@ -280,7 +279,7 @@ export const Settings = () => {
                   </label>
                   <Input
                     value={settingsData.smtp_server || ''}
-                    onChange={(e) => setSettings(prev => ({ ...prev, smtp_server: e.target.value }))}
+                    onChange={(e) => updateSetting('smtp_server', e.target.value)}
                     className="w-full"
                   />
                 </div>
@@ -291,7 +290,7 @@ export const Settings = () => {
                   <Input
                     type="number"
                     value={settingsData.smtp_port}
-                    onChange={(e) => setSettings(prev => ({ ...prev, smtp_port: Number(e.target.value) || 0 }))}
+                    onChange={(e) => updateSetting('smtp_port', Number(e.target.value) || 0)}
                     className="w-full"
                   />
                 </div>
@@ -301,7 +300,7 @@ export const Settings = () => {
                   </label>
                   <Input
                     value={settingsData.smtp_username || ''}
-                    onChange={(e) => setSettings(prev => ({ ...prev, smtp_username: e.target.value }))}
+                    onChange={(e) => updateSetting('smtp_username', e.target.value)}
                     className="w-full"
                   />
                 </div>
@@ -312,7 +311,7 @@ export const Settings = () => {
                   <Input
                     type="password"
                     value={settingsData.smtp_password || ''}
-                    onChange={(e) => setSettings(prev => ({ ...prev, smtp_password: e.target.value }))}
+                    onChange={(e) => updateSetting('smtp_password', e.target.value)}
                     className="w-full"
                   />
                 </div>
@@ -322,7 +321,7 @@ export const Settings = () => {
                   </label>
                   <Switch
                     checked={settingsData.smtp_tls}
-                    onChange={(value) => setSettings(prev => ({ ...prev, smtp_tls: value }))}
+                    onChange={(value) => updateSetting('smtp_tls', value)}
                     checkedChildren="Enabled"
                     uncheckedChildren="Disabled"
                   />
@@ -342,7 +341,7 @@ export const Settings = () => {
               </label>
               <Switch
                 checked={settingsData.auto_report_enabled}
-                onChange={(value) => setSettings(prev => ({ ...prev, auto_report_enabled: value }))}
+                onChange={(value) => updateSetting('auto_report_enabled', value)}
                 checkedChildren="Enabled"
                 uncheckedChildren="Disabled"
               />
@@ -354,7 +353,7 @@ export const Settings = () => {
               <Input
                 type="time"
                 value={settingsData.auto_report_time}
-                onChange={(e) => setSettings(prev => ({ ...prev, auto_report_time: e.target.value }))}
+                onChange={(e) => updateSetting('auto_report_time', e.target.value)}
                 className="w-full"
               />
             </div>
@@ -364,7 +363,7 @@ export const Settings = () => {
               </label>
               <Input
                 value={settingsData.auto_report_recipients || ''}
-                onChange={(e) => setSettings(prev => ({ ...prev, auto_report_recipients: e.target.value }))}
+                onChange={(e) => updateSetting('auto_report_recipients', e.target.value)}
                 className="w-full"
                 placeholder="Comma-separated email addresses"
               />

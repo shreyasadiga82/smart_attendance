@@ -3,7 +3,8 @@ import React from 'react'
 interface ChipProps {
   className?: string
   variant?: 'primary' | 'secondary' | 'tertiary' | 'success' | 'error' | 'warning'
-  size?: 'sm' | 'md'
+  size?: 'xs' | 'sm' | 'md' | 'lg'
+  children?: React.ReactNode
 }
 
 export const Chip = ({
@@ -23,9 +24,11 @@ export const Chip = ({
   }
 
   // Size classes
-  const sizeClasses = {
+  const sizeClasses: Record<string, string> = {
+    xs: 'px-1.5 py-0.5 text-[10px] rounded',
     sm: 'px-2 py-1 text-xs rounded',
-    md: 'px-3 py-2 text-sm rounded-md'
+    md: 'px-3 py-2 text-sm rounded-md',
+    lg: 'px-4 py-2.5 text-base rounded-md'
   }
 
   return (

@@ -6,6 +6,7 @@ import { AttendanceTrend } from '../components/charts/AttendanceTrend'
 import { SessionDonut } from '../components/charts/SessionDonut'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Avatar } from '../components/ui/Avatar'
+import { apiRequest } from '../lib/api'
 
 interface DashboardData {
   stats: {
@@ -45,11 +46,7 @@ export const Dashboard = () => {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const response = await fetch('/api/dashboard/')
-        if (!response.ok) {
-          throw new Error('Failed to fetch dashboard data')
-        }
-        const data = await response.json()
+        const data = await apiRequest<DashboardData>('/dashboard/')
         setDashboardData(data)
       } catch (err: any) {
         setError(err.message || 'Something went wrong')
