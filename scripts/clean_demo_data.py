@@ -60,6 +60,18 @@ def clean_database():
         except Exception as e:
             logger.warning(f"Could not reload face engine: {e}")
 
+        # Clean generated mock reports
+        for rep_dir in [os.path.join(backend_dir, '..', 'data', 'reports'), os.path.join(backend_dir, 'data', 'reports')]:
+            if os.path.exists(rep_dir):
+                for f in os.listdir(rep_dir):
+                    fpath = os.path.join(rep_dir, f)
+                    if os.path.isfile(fpath) and not f.startswith('.'):
+                        try:
+                            os.remove(fpath)
+                            logger.info(f"Removed demo report file: {f}")
+                        except Exception as err:
+                            logger.warning(f"Could not remove {fpath}: {err}")
+
         # Verify users exist
         users = db.query(User).all()
         logger.info(f"Active system users retained: {[u.username for u in users]}")
@@ -69,7 +81,7 @@ def clean_database():
         print("=" * 60)
         print("  - All mock/demo data removed.")
         print("  - Admin and Teacher accounts preserved.")
-        print("  - Database is now clean for registering real students.")
+        print("  - Database is now completely clean for registering real students.")
         print("=" * 60 + "\n")
 
     except Exception as e:
@@ -80,8 +92,12 @@ def clean_database():
         db.close()
 
 if __name__ == "__main__":
-    confirm = input("Are you sure you want to delete all demo students and attendance records? (y/N): ")
-    if confirm.strip().lower() in ('y', 'yes'):
+    auto_yes = "--yes" in sys.argv or "-y" in sys.argv or os.environ.get("AUTO_CONFIRM") == "1"
+    if auto_yes:
         clean_database()
     else:
-        print("Cleanup aborted by user.")
+        confirm = input("Are you sure you want to delete all demo students and attendance records? (y/N): ")
+        if confirm.strip().lower() in ('y', 'yes'):
+            clean_database()
+        else:
+            print("Cleanup aborted by user.")
