@@ -1,0 +1,6 @@
+opencv-python-headless
+websockets
+requests
+gpiozero
+RPLCD
+smbus2

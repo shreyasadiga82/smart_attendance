@@ -1,0 +1,116 @@
+ABSOLUTE PATH: C:\Users\User\Desktop\smart_attendance
+
+FOLDER STRUCTURE (as created):
+smart_attendance/
+├── README.md
+├── .env.example
+├── .gitignore
+├── run.bat
+├── run.sh
+├── scripts/
+│   ├── make_cert.py
+│   ├── create_admin.py
+│   └── seed_demo.py
+├── backend/
+│   ├── requirements.txt
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── config.py
+│   │   ├── database.py
+│   │   ├── models.py
+│   │   ├── schemas.py
+│   │   ├── security.py
+│   │   ├── deps.py
+│   │   ├── routers/
+│   │   │   ├── auth.py
+│   │   │   ├── students.py
+│   │   │   ├── enrollment.py
+│   │   │   ├── attendance.py
+│   │   │   ├── reports.py
+│   │   │   ├── settings.py
+│   │   │   ├── dashboard.py
+│   │   │   └── stream.py
+│   │   ├── services/
+│   │   │   ├── face_engine.py
+│   │   │   ├── liveness.py
+│   │   │   ├── session_service.py
+│   │   │   ├── attendance_service.py
+│   │   │   ├── notifier.py
+│   │   │   ├── report_service.py
+│   │   │   ├── mailer.py
+│   │   │   ├── scheduler.py
+│   │   │   └── hardware/
+│   │   │       ├── camera_source.py
+│   │   │       └── feedback.py
+│   │   └── tests/
+│   │       ├── test_session_service.py
+│   │       ├── test_attendance_service.py
+│   │       └── test_report_service.py
+├── frontend/
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── tailwind.config.ts
+│   ├── postcss.config.js
+│   ├── tsconfig.json
+│   ├── index.html
+│   ├── public/
+│   │   ├── icons (192/512 PNG generated, favicon, manifest assets)
+│   │   ├── manifest.json
+│   │   ├── pwa-192x192.png
+│   │   ├── pwa-512x512.png
+│   │   └── favicon.ico
+│   └── src/
+│       ├── main.tsx
+│       ├── App.tsx
+│       ├── index.css
+│       ├── lib/ (api.ts, ws.ts, auth.ts)
+│       ├── hooks/ (useCamera.ts, useRecognition.ts, useTheme.ts)
+│       ├── components/
+│       │   ├── layout/ (AppShell.tsx, NavRail.tsx, BottomNav.tsx, TopBar.tsx)
+│       │   ├── ui/ (Button, Card, Chip, Input, Select, Dialog, Toast, Skeleton, Avatar, Switch, Tabs, EmptyState)
+│       │   ├── camera/ (CameraView.tsx, FaceOverlay.tsx, StatusBanner.tsx, CameraPicker.tsx)
+│       │   └── charts/ (AttendanceTrend.tsx, SessionDonut.tsx)
+│       └── pages/
+│           ├── Login.tsx
+│           ├── Dashboard.tsx
+│           ├── LiveAttendance.tsx
+│           ├── EnrollStudent.tsx
+│           ├── Students.tsx
+│           ├── Records.tsx
+│           ├── Reports.tsx
+│           └── Settings.tsx
+└── data/ (created at runtime: attendance.db, faces/, reports/)
+
+EXACT COMMANDS:
+(a) Install:
+    Windows: run.bat
+    Linux/macOS: ./run.sh
+(b) Create admin user:
+    Windows:
+        cd backend
+        venv\Scripts\activate
+        python scripts\create_admin.py
+    Linux/macOS:
+        cd backend
+        source venv/bin/activate
+        python scripts/create_admin.py
+(c) Run:
+    Windows: run.bat
+    Linux/macOS: ./run.sh
+(d) Open on my phone:
+    After running the server, the terminal will display the LAN URL and a QR code.
+    Connect your phone to the same Wi-Fi network, scan the QR code or visit the URL (use https:// if SSL certificates were generated, otherwise http://).
+    Note: For mobile camera access, HTTPS is required. If you did not generate SSL certificates (because mkcert is not installed), you will need to install mkcert and re-run the certificate generation step.
+
+MANUAL STEPS:
+1. Install mkcert if you want to use HTTPS for mobile camera access:
+   - Windows: choco install mkcert
+   - macOS: brew install mkcert
+   - Linux: Follow instructions at https://github.com/FiloSottile/mkcert#installation
+2. After installing mkcert, run the script to generate certificates:
+   - Windows: python scripts\make_cert.py
+   - Linux/macOS: python scripts/make_cert.py
+3. If you wish to use notification providers other than console, obtain the necessary API keys and tokens and set them in the .env file (copy from .env.example).
+4. Adjust session timings, recognition threshold, and other settings in the Settings page of the application after logging in.
+
+NOTE: Due to permission restrictions, the backend dependencies could not be installed in this session, so the tests were not run and the server was not started. The user must run the installation script to set up the environment and then proceed with the steps above.

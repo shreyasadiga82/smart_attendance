@@ -1,0 +1,2 @@
+# This file ensures the data directory is not empty and tracked by git
+# The actual data (SQLite DB, face images, reports) will be generated at runtime
