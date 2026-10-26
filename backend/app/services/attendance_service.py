@@ -24,18 +24,19 @@ class AttendanceService:
         session: str = "morning",
         method: str = "auto",
         note: Optional[str] = None,
-        date: Optional[date] = None
+        date: Optional[date] = None,
+        allow_fallback: bool = False
     ) -> Attendance:
         """
         Mark attendance for a student.
         Raises ValueError if already marked or within rapid duplicate cooldown.
-        Supports automatic session fallback for off-hour classes/demos.
+        Supports automatic session fallback for off-hour classes/demos when allow_fallback=True.
         """
         target_date = target_date or date or datetime.now().date()
 
         # Check if session is active
         current_session = self.session_service.get_current_session()
-        if method == "auto" and current_session is None:
+        if method == "auto" and current_session is None and not allow_fallback:
             raise ValueError("No active session at this time")
 
         if current_session:

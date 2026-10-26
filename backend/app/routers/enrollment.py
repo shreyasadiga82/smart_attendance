@@ -8,10 +8,10 @@ from app.services.face_engine import FaceEngine, get_engine
 from app.deps import get_current_active_user
 import numpy as np
 import json
-import os
+import logging
 from app.config import settings
 
-
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -81,14 +81,21 @@ async def enrollment_step2(
     for embedding in embeddings:
         face_embedding = FaceEmbedding(
             student_id=student_id,
-            embedding=json.dumps(embedding)  # Store as JSON string
+            embedding=json.dumps(embedding),  # Store as JSON string
+            engine=face_engine.engine_name,
+            dimension=face_engine.dimension
         )
         db.add(face_embedding)
 
     db.commit()
 
-    # Reload face engine embeddings (in-memory cache)
+    # Reload face engine and smart attendance engine in-memory caches
     face_engine.load_embeddings_from_db(db)
+    try:
+        from app.services.recognition_engine import get_smart_engine
+        get_smart_engine().refresh_embeddings(db)
+    except Exception as e:
+        logger.warning(f"Could not refresh smart engine embeddings: {e}")
 
     return EnrollmentResponse(
         student_id=student_id,

@@ -53,6 +53,11 @@ async def get_db_ws():
         db.close()
 
 
+from app.services.recognition_engine import get_smart_engine
+
+smart_attendance_engine = get_smart_engine()
+
+
 @router.websocket("/recognition")
 @router.websocket("/ws/recognition")
 async def websocket_recognition_endpoint(
@@ -61,7 +66,6 @@ async def websocket_recognition_endpoint(
     db: Session = Depends(get_db_ws)
 ):
     await manager.connect(websocket)
-    face_engine = get_engine()
     
     # Authenticate edge device if token provided
     edge_device = None
@@ -89,74 +93,8 @@ async def websocket_recognition_endpoint(
                     nparr = np.frombuffer(img_data, np.uint8)
                     frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-                    faces = face_engine.detect_faces(frame)
-                    results = []
-
-                    for face in faces:
-                        embedding = face_engine.get_embedding(face["image"])
-                        if embedding is None:
-                            continue
-
-                        # Check liveness
-                        liveness_ok = True
-                        if settings.LIVENESS_CHECK:
-                            # Use track_id or random uuid if not tracked yet
-                            face_id = str(uuid.uuid4())
-                            liveness_ok = liveness_checker.check_liveness(
-                                face_id=face_id,
-                                frame=frame,
-                                bbox=face["bbox"],
-                                landmarks=face["landmarks"]
-                            )
-
-                        student_id, confidence = face_engine.match_embedding(embedding)
-
-                        status = "unknown"
-                        student_name = None
-                        roll_no = None
-
-                        if student_id is not None and confidence >= settings.RECOGNITION_THRESHOLD and liveness_ok:
-                            student = db.query(Student).filter(Student.id == student_id).first()
-                            if student:
-                                student_name = student.name
-                                roll_no = student.roll_no
-                                status = "recognized"
-
-                                today = date.today()
-                                session_service = __import__('app.services.session_service', fromlist=['SessionService']).SessionService()
-                                current_session = session_service.get_current_session()
-                                effective_session = current_session or "morning"
-                                attendance_service = AttendanceService(db)
-                                already_marked = attendance_service.check_already_marked(
-                                    student_id=student_id,
-                                    date=today,
-                                    session=effective_session
-                                )
-                                if already_marked:
-                                    status = "already_marked"
-                                else:
-                                    try:
-                                        attendance_service.mark_attendance(
-                                            student_id=student_id,
-                                            date=today,
-                                            session=effective_session,
-                                            method="auto",
-                                            note=f"Face recognized with confidence {confidence * 100:.1f}%"
-                                        )
-                                        status = "marked"
-                                    except Exception:
-                                        status = "already_marked"
-                        else:
-                            status = "unknown"
-
-                        results.append({
-                            "bbox": face["bbox"],
-                            "confidence": float(confidence) if student_id is not None else 0.0,
-                            "student_id": student_id,
-                            "student_name": student_name,
-                            "roll_no": roll_no,
-                            "status": status
-                        })
+                    # Execute full recognition, eye sensor analysis, and attendance marking
+                    results = smart_attendance_engine.process_frame(frame, db=db)
 
                     response = {
                         "type": "recognition_results",
@@ -179,5 +117,5 @@ async def websocket_recognition_endpoint(
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+        logger.debug(f"WebSocket error: {e}")
         manager.disconnect(websocket)

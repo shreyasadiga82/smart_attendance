@@ -72,14 +72,13 @@ Write-Host "[7/7] Starting the server..." -ForegroundColor Cyan
 Write-Host ""
 Write-Host "=============================================================="
 Write-Host "  Server starting..."
-Write-Host "  Backend API: http://localhost:8000"
-Write-Host "  Frontend: http://localhost:3000"
+Write-Host "  Web Application (Frontend + API): http://localhost:8000"
 Write-Host "  API Documentation: http://localhost:8000/docs"
 Write-Host ""
 Write-Host "  To access from mobile devices on the same network:"
 Write-Host "  - Find your computer's IP address (run ipconfig)"
-Write-Host "  - Use https://YOUR_IP:3000 if SSL certificates were generated"
-Write-Host "  - Use http://YOUR_IP:3000 if using HTTP"
+Write-Host "  - Use https://YOUR_IP:8000 if SSL certificates were generated"
+Write-Host "  - Use http://YOUR_IP:8000 if using HTTP"
 Write-Host ""
 Write-Host "  Press Ctrl+C to stop the server"
 Write-Host "=============================================================="
@@ -94,7 +93,6 @@ if (Test-Path "certs\localhost.pem") {
 
 # Start the backend server (which serves the frontend)
 . "backend\venv\Scripts\activate.ps1"
-$env:PYTHONPATH = "backend"
-uvicorn app.main:app --reload --app-dir backend
+uvicorn app.main:app --reload --reload-dir backend/app --app-dir backend
 
 pause

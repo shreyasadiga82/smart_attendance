@@ -23,7 +23,9 @@ export const CameraView: React.FC<CameraViewProps> = ({ className = '' }) => {
     toggleStream,
     captureFrame
   } = useCamera()
-  const { results, isProcessing, error: recognitionError, sendFrame } = useRecognition()
+  const { results, isProcessing, error: recognitionError, sendFrame } = useRecognition({
+    active: isStreaming
+  })
 
   // Send frames periodically when streaming
   useEffect(() => {

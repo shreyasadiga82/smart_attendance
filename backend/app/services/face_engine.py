@@ -102,7 +102,8 @@ class InsightFaceEngine(FaceEngine):
                 "bbox": bbox.tolist(),
                 "image": face_img,
                 "embedding": embedding,
-                "landmarks": landmarks
+                "landmarks": landmarks,
+                "raw_face": face
             })
         return results
 
@@ -245,7 +246,8 @@ class OpenCVSFaceEngine(FaceEngine):
                     "bbox": bbox_xyxy,
                     "image": aligned_face,
                     "embedding": embedding[0],
-                    "landmarks": face[4:14].reshape((5, 2))
+                    "landmarks": face[4:14].reshape((5, 2)),
+                    "raw_face": face
                 })
         return results
 

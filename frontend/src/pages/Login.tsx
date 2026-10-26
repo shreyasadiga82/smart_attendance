@@ -1,13 +1,15 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Card } from '../components/ui/Card'
-import { Avatar } from '../components/ui/Avatar'
+import { Shield, GraduationCap, ArrowRight, Sparkles } from 'lucide-react'
 import { Toast } from '../components/ui/Toast'
 
-export const Login = () => {
-  const { login } = useAuth()
+export const Login: React.FC = () => {
+  const { user, login } = useAuth()
+  const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -16,37 +18,51 @@ export const Login = () => {
   const [toastMessage, setToastMessage] = useState('')
   const [toastVariant, setToastVariant] = useState<'success' | 'error' | 'info'>('info')
 
+  // If already logged in, redirect immediately
+  useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true })
+    }
+  }, [user, navigate])
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
     try {
-      // In a real app, we would send a request to the backend API
-      // For now, we'll simulate an API call
       const response = await fetch('/api/auth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
-          username: username,
+          username: username.trim(),
           password: password
         })
       })
 
       if (!response.ok) {
-        throw new Error('Invalid credentials')
+        let errMsg = 'Invalid username or password'
+        try {
+          const errData = await response.json()
+          if (errData.detail) errMsg = errData.detail
+        } catch {}
+        throw new Error(errMsg)
       }
 
       const data = await response.json()
       login(data.access_token)
-      setToastMessage('Login successful!')
+      setToastMessage(`Welcome back, ${username}!`)
       setToastVariant('success')
       setShowToast(true)
+
+      // Direct navigation to dashboard based on authenticated role
+      navigate('/', { replace: true })
     } catch (err: any) {
-      setError(err.message || 'Login failed')
-      setToastMessage(err.message || 'Login failed')
+      const msg = err.message || 'Login failed. Please check your credentials.'
+      setError(msg)
+      setToastMessage(msg)
       setToastVariant('error')
       setShowToast(true)
     } finally {
@@ -54,79 +70,118 @@ export const Login = () => {
     }
   }
 
-  const handleToastClose = () => {
-    setShowToast(false)
+  const fillCredentials = (user: string, pass: string) => {
+    setUsername(user)
+    setPassword(pass)
+    setError(null)
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8">
-        <div>
-          <Avatar className="mx-auto h-24 w-24" name="SA" />
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-gray-100">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md space-y-6">
+        <div className="text-center">
+          <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-tr from-primary-600 to-indigo-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+            SA
+          </div>
+          <h2 className="mt-4 text-3xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
             Smart Attendance
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            Sign in to your account
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            Sign in to access your dashboard
           </p>
         </div>
-        <Card className="p-8 space-y-6">
-          <form onSubmit={handleLogin} className="space-y-6">
+
+        <Card className="p-8 shadow-xl border border-gray-100 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-2xl">
+          {error && (
+            <div className="mb-5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-sm font-medium">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-4">
             <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
+                Username
+              </label>
               <Input
-                label="Username"
-                placeholder="Enter your username"
+                type="text"
+                placeholder="Enter username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-              />
-            </div>
-            <div>
-              <Input
-                label="Password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                className="w-full"
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                {/* Remember me checkbox (optional) */}
-              </div>
-              <div className="text-sm">
-                <a href="#" className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300">
-                  Forgot password?
-                </a>
-              </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-1.5">
+                Password
+              </label>
+              <Input
+                type="password"
+                placeholder="Enter password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full"
+              />
             </div>
 
             <Button
               type="submit"
               variant="primary"
               size="lg"
-              className="w-full"
+              className="w-full mt-2 justify-center font-semibold text-sm shadow-md"
               disabled={loading}
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Authenticating...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  Sign In
+                  <ArrowRight className="w-4 h-4" />
+                </span>
+              )}
             </Button>
           </form>
-          <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
-            Don't have an account? <a href="#" className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300">
-              Contact administrator to create an account
-            </a>
-          </p>
+
+          {/* Quick Credential Presets */}
+          <div className="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 text-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2.5">
+              Select account preset:
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => fillCredentials('admin', 'admin123')}
+                className="flex items-center justify-center gap-1.5 p-2 rounded-xl text-xs font-semibold border border-primary-500/30 bg-primary-500/5 hover:bg-primary-500/10 text-primary-700 dark:text-primary-300 transition-colors"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span>Admin Login</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => fillCredentials('teacher', 'teacher123')}
+                className="flex items-center justify-center gap-1.5 p-2 rounded-xl text-xs font-semibold border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 transition-colors"
+              >
+                <GraduationCap className="w-3.5 h-3.5" />
+                <span>Teacher Login</span>
+              </button>
+            </div>
+          </div>
         </Card>
+
+        {showToast && (
+          <Toast
+            message={toastMessage}
+            variant={toastVariant}
+            onClose={() => setShowToast(false)}
+          />
+        )}
       </div>
-      {showToast && (
-        <Toast
-          message={toastMessage}
-          variant={toastVariant}
-          onClose={handleToastClose}
-        />
-      )}
     </div>
   )
 }

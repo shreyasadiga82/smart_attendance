@@ -31,6 +31,8 @@ function App() {
     )
   }
 
+  const isTeacher = user.role === 'teacher'
+
   // Authenticated routes
   return (
     <AppShell>
@@ -46,17 +48,38 @@ function App() {
       <main className="flex-1 overflow-x-hidden pb-16 md:pb-6">
         <Routes>
           <Route path="/login" element={<Navigate to="/" replace />} />
+
+          {/* Root Dashboard strictly separated by role */}
           <Route
             path="/"
-            element={user.role === 'teacher' ? <TeacherDashboard /> : <Dashboard />}
+            element={isTeacher ? <TeacherDashboard /> : <Dashboard />}
           />
-          <Route path="/teacher" element={<TeacherDashboard />} />
+
+          {/* Teacher Specific Routes */}
+          <Route
+            path="/teacher"
+            element={isTeacher ? <TeacherDashboard /> : <Navigate to="/" replace />}
+          />
+
+          {/* Common Operational Routes */}
           <Route path="/live" element={<LiveAttendance />} />
-          <Route path="/enroll" element={<EnrollStudent />} />
-          <Route path="/students" element={<Students />} />
           <Route path="/records" element={<Records />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/students" element={<Students />} />
+
+          {/* Admin Protected Routes */}
+          <Route
+            path="/enroll"
+            element={!isTeacher ? <EnrollStudent /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/reports"
+            element={!isTeacher ? <Reports /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/settings"
+            element={!isTeacher ? <Settings /> : <Navigate to="/" replace />}
+          />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

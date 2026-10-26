@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Calendar,
   Camera,
   ClipboardCheck,
   Download,
@@ -46,8 +47,14 @@ interface AttendanceRecord {
 
 export const TeacherDashboard: React.FC = () => {
   const { user } = useAuth()
+  const [now, setNow] = useState(new Date())
   const [students, setStudents] = useState<Student[]>([])
   const [todayRecords, setTodayRecords] = useState<AttendanceRecord[]>([])
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
   const [selectedClass, setSelectedClass] = useState<string>('Class 10-A')
   const [selectedSession, setSelectedSession] = useState<'morning' | 'afternoon'>('morning')
   const [activeMode, setActiveMode] = useState<'sheet' | 'camera'>('sheet')
@@ -219,6 +226,19 @@ export const TeacherDashboard: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Live Date and Time Widget */}
+          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/20 text-xs text-white">
+            <Calendar className="w-3.5 h-3.5 text-emerald-300" />
+            <span className="font-semibold">
+              {now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+            <span className="text-white/40">|</span>
+            <Clock className="w-3.5 h-3.5 text-emerald-300 animate-pulse" />
+            <span className="font-mono font-bold">
+              {now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+            </span>
+          </div>
+
           {/* Class Selector Dropdown */}
           <div className="bg-white/10 backdrop-blur-md rounded-xl p-1.5 border border-white/20">
             <label className="block text-[10px] uppercase font-bold text-primary-200 px-1 mb-0.5">
