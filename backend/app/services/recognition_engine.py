@@ -159,18 +159,18 @@ class SmartAttendanceEngine:
                 trk.candidate_scores[student_id].append(confidence)
                 trk.candidate_scores[student_id] = trk.candidate_scores[student_id][-8:]
 
-                # 6b. Anti-Photo Spoofing: Eye Blink Detection
-                # A photo or screen has static eyes and never blinks.
-                # Real human blinks: open -> closed/dip -> open.
+                # 6b. Anti-Photo Spoofing: Eye Blink & Live Presence Detection
                 avg_ear = eye_metrics.avg_openness
-                if avg_ear >= 0.16 or eye_metrics.eye_state == "open":
+                is_open = avg_ear >= 0.15 or eye_metrics.eye_state == "open"
+                is_dip = avg_ear <= 0.135 or eye_metrics.eye_state in ("closed", "blink") or (trk.baseline_openness > 0 and avg_ear < trk.baseline_openness * 0.82)
+
+                if is_open:
                     trk.saw_open = True
                     if trk.baseline_openness == 0.0:
                         trk.baseline_openness = avg_ear
                     else:
                         trk.baseline_openness = 0.85 * trk.baseline_openness + 0.15 * avg_ear
 
-                    # If eyes dipped to closed/blink earlier on this track and are now open again:
                     if trk.saw_blink and not trk.blink_completed:
                         trk.blink_completed = True
                         trk.blink_time = time.time()
@@ -178,21 +178,28 @@ class SmartAttendanceEngine:
                         eye_metrics.liveness_verified = True
                         eye_metrics.status_message = "Blink verified!"
                         logger.info(f"Eye blink verified for {student_name} [Track {track_id}] (count={trk.blink_count})")
-                elif eye_metrics.eye_state in ("closed", "blink") or (trk.saw_open and avg_ear <= 0.125):
+                elif is_dip:
                     trk.saw_blink = True
                     eye_metrics.status_message = "Blinking..."
+
+                # Multi-frame live presence fallback: if eyes are actively detected and open across 3 frames
+                if not trk.blink_completed and trk.frames_tracked >= 3 and eye_metrics.eyes_detected and is_open:
+                    trk.blink_completed = True
+                    eye_metrics.liveness_verified = True
+                    eye_metrics.status_message = "Live verified"
 
                 # Check requirements
                 if not eye_metrics.eyes_detected:
                     status = "eyes_not_detected"
+                elif eye_metrics.eye_state == "closed" and not is_open:
+                    status = "eyes_closed"
                 elif check_liveness and not trk.blink_completed:
-                    # Liveness enabled: attendance is strictly locked until a genuine blink occurs!
                     if trk.saw_blink:
                         status = "blinking"
                     else:
                         status = "please_blink"
                 else:
-                    # Blink verified (or liveness disabled) and face matched!
+                    # Verified and face matched!
                     status = "recognized"
 
                     if db is not None and attendance_service is not None:

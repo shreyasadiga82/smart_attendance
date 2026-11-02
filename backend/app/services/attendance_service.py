@@ -93,6 +93,42 @@ class AttendanceService:
         except Exception as e:
             logger.warning(f"Background Supabase sync failed: {e}")
 
+        # Async parent email notification to guardian
+        try:
+            student = self.db.query(Student).filter(Student.id == student_id).first()
+            if student and student.parent_email:
+                import threading
+                from app.database import SessionLocal
+
+                def _send_parent_mail(p_email, s_name, s_roll, s_sess, s_time):
+                    try:
+                        bg_db = SessionLocal()
+                        from app.services.mailer import Mailer
+                        mailer = Mailer(db=bg_db)
+                        if mailer.smtp_username and mailer.smtp_password:
+                            mailer.send_parent_notification(
+                                parent_email=p_email,
+                                student_name=s_name,
+                                roll_no=s_roll,
+                                session_name=s_sess,
+                                timestamp_str=s_time,
+                                status="Present",
+                                db_session=bg_db
+                            )
+                        bg_db.close()
+                    except Exception as err:
+                        logger.error(f"Failed to send parent attendance email to {p_email}: {err}")
+
+                formatted_time = now.strftime("%I:%M %p")
+                t = threading.Thread(
+                    target=_send_parent_mail,
+                    args=(student.parent_email, student.name, student.roll_no, session, formatted_time),
+                    daemon=True
+                )
+                t.start()
+        except Exception as e:
+            logger.warning(f"Could not dispatch parent email notification: {e}")
+
         return db_attendance
 
     def check_already_marked(

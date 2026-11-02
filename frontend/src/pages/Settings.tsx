@@ -20,7 +20,8 @@ import {
   Cpu,
   Monitor,
   Sun,
-  Moon
+  Moon,
+  Mail
 } from 'lucide-react'
 
 interface SettingsData {
@@ -42,6 +43,11 @@ interface SettingsData {
   supabase_url: string
   supabase_key: string
   supabase_sync_auto: boolean
+  smtp_server: string
+  smtp_port: number
+  smtp_username: string
+  smtp_password: string
+  smtp_tls: boolean
 }
 
 export const Settings: React.FC = () => {
@@ -64,12 +70,22 @@ export const Settings: React.FC = () => {
     supabase_enabled: false,
     supabase_url: '',
     supabase_key: '',
-    supabase_sync_auto: true
+    supabase_sync_auto: true,
+    smtp_server: 'smtp.gmail.com',
+    smtp_port: 587,
+    smtp_username: '',
+    smtp_password: '',
+    smtp_tls: true
   })
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // SMTP Testing state
+  const [testingSmtp, setTestingSmtp] = useState(false)
+  const [smtpStatus, setSmtpStatus] = useState<{ success: boolean; message: string } | null>(null)
+  const [testRecipient, setTestRecipient] = useState('')
 
   // Supabase testing state
   const [testingSupabase, setTestingSupabase] = useState(false)
@@ -146,6 +162,29 @@ export const Settings: React.FC = () => {
       setSupabaseStatus(`Sync failed: ${err.message}`)
     } finally {
       setSyncingSupabase(false)
+    }
+  }
+
+  const handleTestSmtp = async () => {
+    try {
+      setTestingSmtp(true)
+      setSmtpStatus(null)
+      const res = await apiRequest<{ success: boolean; message: string }>('/settings/smtp/test', {
+        method: 'POST',
+        body: JSON.stringify({
+          smtp_server: settings.smtp_server,
+          smtp_port: settings.smtp_port,
+          smtp_username: settings.smtp_username,
+          smtp_password: settings.smtp_password,
+          smtp_tls: settings.smtp_tls,
+          test_recipient: testRecipient || settings.smtp_username
+        })
+      })
+      setSmtpStatus(res)
+    } catch (err: any) {
+      setSmtpStatus({ success: false, message: err.message || 'SMTP connection test failed' })
+    } finally {
+      setTestingSmtp(false)
     }
   }
 
@@ -460,7 +499,144 @@ export const Settings: React.FC = () => {
           </div>
         </Card>
 
-        {/* Section 4: Production Reset & Clean Demo Data */}
+        {/* Section 4: Email & Parent Notifications (SMTP) */}
+        <Card className="p-5 bg-gradient-to-br from-white to-indigo-50/30 dark:from-gray-800 dark:to-gray-800/90 shadow-sm border border-gray-200 dark:border-gray-700 space-y-4">
+          <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-2">
+            <div className="flex items-center space-x-2">
+              <Mail className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                Parent Email Notifications & SMTP Setup
+              </h2>
+            </div>
+            <span className="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-semibold px-2 py-0.5 rounded-full">
+              Live Dispatch
+            </span>
+          </div>
+
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Automatically sends attendance alerts to parents when their ward's face is scanned and verified.
+            Emails are sent directly from your own email account.
+          </p>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                Your Email Address (Sender Username)
+              </label>
+              <Input
+                type="email"
+                placeholder="yourname@gmail.com"
+                value={settings.smtp_username}
+                onChange={(e) => setSettings(p => ({ ...p, smtp_username: e.target.value }))}
+                className="text-xs"
+              />
+              <p className="text-[10px] text-gray-400 mt-1">
+                Parent emails will show this address as the sender.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                App Password / SMTP Password
+              </label>
+              <Input
+                type="password"
+                placeholder="16-character Google App Password"
+                value={settings.smtp_password}
+                onChange={(e) => setSettings(p => ({ ...p, smtp_password: e.target.value }))}
+                className="text-xs font-mono"
+              />
+              <p className="text-[10px] text-gray-400 mt-1">
+                For Gmail: Use a 16-character Google App Password (not your normal password).
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                SMTP Server Host
+              </label>
+              <Input
+                placeholder="smtp.gmail.com"
+                value={settings.smtp_server}
+                onChange={(e) => setSettings(p => ({ ...p, smtp_server: e.target.value }))}
+                className="text-xs font-mono"
+              />
+              <p className="text-[10px] text-gray-400 mt-1">
+                Gmail: <code className="text-primary-600">smtp.gmail.com</code> • Outlook: <code className="text-primary-600">smtp.office365.com</code>
+              </p>
+            </div>
+
+            <div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                    Port
+                  </label>
+                  <Input
+                    type="number"
+                    value={settings.smtp_port}
+                    onChange={(e) => setSettings(p => ({ ...p, smtp_port: parseInt(e.target.value) || 587 }))}
+                    className="text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                    Security
+                  </label>
+                  <label className="flex items-center space-x-2 mt-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.smtp_tls}
+                      onChange={(e) => setSettings(p => ({ ...p, smtp_tls: e.target.checked }))}
+                      className="w-4 h-4 accent-primary-600"
+                    />
+                    <span className="text-xs text-gray-700 dark:text-gray-300">Enable TLS</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Test Email Bar */}
+          <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <Input
+                type="email"
+                placeholder="Send test email to (e.g. parent@example.com)"
+                value={testRecipient}
+                onChange={(e) => setTestRecipient(e.target.value)}
+                className="text-xs flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleTestSmtp}
+                disabled={testingSmtp || !settings.smtp_username || !settings.smtp_password}
+              >
+                <Send className="w-3.5 h-3.5 mr-1" />
+                {testingSmtp ? 'Sending Test...' : 'Send Test Email'}
+              </Button>
+            </div>
+
+            {smtpStatus && (
+              <div className={`mt-2 p-2.5 rounded-lg border text-xs flex items-center space-x-2 ${
+                smtpStatus.success
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                  : 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+              }`}>
+                {smtpStatus.success ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                )}
+                <span>{smtpStatus.message}</span>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Section 5: Production Reset & Clean Demo Data */}
         <Card className="p-5 bg-gradient-to-br from-white to-red-50/30 dark:from-gray-800 dark:to-gray-800 border-2 border-red-200 dark:border-red-900/60 shadow-sm space-y-3">
           <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
             <Trash2 className="w-4 h-4" />

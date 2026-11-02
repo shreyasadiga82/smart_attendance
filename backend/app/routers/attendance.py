@@ -34,7 +34,8 @@ async def mark_attendance(
             date=attendance.date,
             session=attendance.session,
             method=attendance.method,
-            note=attendance.note
+            note=attendance.note,
+            allow_fallback=True
         )
         return db_attendance
     except ValueError as e:

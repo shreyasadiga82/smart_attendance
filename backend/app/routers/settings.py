@@ -167,3 +167,31 @@ async def sync_supabase(
     """Trigger full sync of local database to Supabase."""
     res = supabase_service.sync_all_from_local(db)
     return res
+
+
+@router.post("/smtp/test")
+async def test_smtp_connection(
+    payload: Optional[Dict[str, Any]] = Body(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Test SMTP connection and optionally send a test notification email."""
+    from app.services.mailer import Mailer
+    
+    server = payload.get("smtp_server") if payload else None
+    port = payload.get("smtp_port") if payload else None
+    username = payload.get("smtp_username") if payload else None
+    password = payload.get("smtp_password") if payload else None
+    tls = payload.get("smtp_tls") if payload else None
+    recipient = payload.get("test_recipient") if payload else None
+    
+    mailer = Mailer(
+        db=db,
+        smtp_server=server,
+        smtp_port=port,
+        smtp_username=username,
+        smtp_password=password,
+        smtp_tls=tls
+    )
+    result = mailer.test_connection(test_recipient=recipient)
+    return result
