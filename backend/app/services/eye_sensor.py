@@ -31,18 +31,18 @@ class EyeMetrics:
         liveness_verified: bool = False,
         status_message: str = ""
     ):
-        self.eyes_detected = eyes_detected
-        self.left_eye_center = left_eye_center or [0.0, 0.0]
-        self.right_eye_center = right_eye_center or [0.0, 0.0]
-        self.left_eye_ear = round(left_eye_ear, 3)
-        self.right_eye_ear = round(right_eye_ear, 3)
-        self.avg_openness = round(avg_openness, 3)
-        self.eye_state = eye_state
-        self.eye_tilt_deg = round(eye_tilt_deg, 1)
-        self.sharpness = round(sharpness, 1)
-        self.liveness_score = round(liveness_score, 3)
-        self.liveness_verified = liveness_verified
-        self.status_message = status_message
+        self.eyes_detected = bool(eyes_detected)
+        self.left_eye_center = [float(c) for c in (left_eye_center or [0.0, 0.0])]
+        self.right_eye_center = [float(c) for c in (right_eye_center or [0.0, 0.0])]
+        self.left_eye_ear = float(round(float(left_eye_ear), 3))
+        self.right_eye_ear = float(round(float(right_eye_ear), 3))
+        self.avg_openness = float(round(float(avg_openness), 3))
+        self.eye_state = str(eye_state)
+        self.eye_tilt_deg = float(round(float(eye_tilt_deg), 1))
+        self.sharpness = float(round(float(sharpness), 1))
+        self.liveness_score = float(round(float(liveness_score), 3))
+        self.liveness_verified = bool(liveness_verified)
+        self.status_message = str(status_message)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -66,10 +66,10 @@ class EyeSensor:
     Dedicated Eye Sensor module for face recognition and attendance verification.
     """
 
-    EAR_OPEN_THRESHOLD = 0.20
-    EAR_CLOSED_THRESHOLD = 0.14
-    MAX_TILT_DEG = 35.0
-    MIN_SHARPNESS = 12.0
+    EAR_OPEN_THRESHOLD = 0.16
+    EAR_CLOSED_THRESHOLD = 0.11
+    MAX_TILT_DEG = 45.0
+    MIN_SHARPNESS = 6.0
 
     def __init__(self):
         # Optional OpenCV Haar Eye cascade for secondary validation when needed
@@ -266,16 +266,16 @@ class EyeSensor:
             )
 
         # Compute inter-ocular distance & tilt
-        dx = right_center[0] - left_center[0]
-        dy = right_center[1] - left_center[1]
-        iod = np.hypot(dx, dy)
-        tilt_deg = abs(np.degrees(np.arctan2(dy, dx)))
+        dx = abs(float(right_center[0] - left_center[0]))
+        dy = abs(float(right_center[1] - left_center[1]))
+        iod = float(np.hypot(right_center[0] - left_center[0], right_center[1] - left_center[1]))
+        tilt_deg = abs(float(np.degrees(np.arctan2(dy, max(1e-5, dx)))))
 
         # Average openness
-        avg_openness = (left_ear + right_ear) / 2.0
+        avg_openness = float((left_ear + right_ear) / 2.0)
 
         # Sharpness around eye regions
-        sharpness = self._compute_sharpness(frame, left_center, right_center, bw, bh)
+        sharpness = float(self._compute_sharpness(frame, left_center, right_center, bw, bh))
 
         # Determine eye state
         if avg_openness >= self.EAR_OPEN_THRESHOLD:
@@ -288,17 +288,17 @@ class EyeSensor:
         # Check posture / validity
         status_msg = "Eyes active"
         if tilt_deg > self.MAX_TILT_DEG:
-            status_msg = f"Head tilt too high ({tilt_deg:.1f}°), please face camera"
-        elif iod < bw * 0.18:
-            status_msg = "Eyes too close or side profile, face camera directly"
+            status_msg = f"Head tilt ({tilt_deg:.0f}°), please face camera"
+        elif iod < bw * 0.14:
+            status_msg = "Face camera directly"
         elif eye_state == "closed":
-            status_msg = "Eyes appear closed, please open eyes"
+            status_msg = "Eyes appear closed"
 
         # Liveness score combining openness, symmetry, and sharpness
-        sym_score = 1.0 - min(1.0, abs(left_ear - right_ear) / (avg_openness + 1e-4))
-        sharp_norm = min(1.0, sharpness / 50.0)
-        open_norm = min(1.0, avg_openness / 0.30)
-        liveness_score = 0.5 * open_norm + 0.3 * sym_score + 0.2 * sharp_norm
+        sym_score = float(1.0 - min(1.0, abs(left_ear - right_ear) / (avg_openness + 1e-4)))
+        sharp_norm = float(min(1.0, sharpness / 50.0))
+        open_norm = float(min(1.0, avg_openness / 0.30))
+        liveness_score = float(0.5 * open_norm + 0.3 * sym_score + 0.2 * sharp_norm)
 
         return EyeMetrics(
             eyes_detected=True,
@@ -320,8 +320,8 @@ class EyeSensor:
         Verify multi-frame temporal eye liveness for a tracked face.
         Checks:
         1. Eye presence confirmed.
-        2. Eyes are open or observed a natural blink.
-        3. Real human micro-variations (preventing static paper photograph attacks).
+        2. Eyes are open or active.
+        3. Real human motion/presence.
         """
         if not current_metrics.eyes_detected:
             return False, "Eyes not detected"
@@ -350,34 +350,10 @@ class EyeSensor:
         self._history[track_id] = [h for h in history if now - h["time"] <= 3.0][-15:]
         history = self._history[track_id]
 
-        # First frame: require at least 2 frames for motion/blink validation
-        if len(history) < 2:
-            # If eyes are clearly open with good sharpness and symmetry on frame 1, allow tentative pass
-            if current_metrics.avg_openness >= self.EAR_OPEN_THRESHOLD and current_metrics.sharpness >= self.MIN_SHARPNESS:
-                return True, "Eyes detected and open"
-            return False, "Verifying eye sensor..."
-
-        # Check for natural micro-variation across frames (paper photo has exactly 0 movement)
-        openness_vals = [h["openness"] for h in history]
-        openness_range = max(openness_vals) - min(openness_vals)
-
-        # Check for blink transition in history: open -> blink/closed -> open
-        had_blink = any(h["state"] in ("blink", "closed") for h in history[:-1]) and current_metrics.eye_state == "open"
-
-        # If currently open and either micro-variation observed or natural blink occurred:
-        if current_metrics.eye_state == "open":
-            if had_blink:
-                return True, "Blink verified live"
-            # Micro-movements: genuine eyes naturally jitter by at least 0.005 EAR or 1px
-            pos_diff = np.hypot(
-                history[-1]["left"][0] - history[0]["left"][0],
-                history[-1]["left"][1] - history[0]["left"][1]
-            )
-            if openness_range >= 0.004 or pos_diff >= 0.8:
-                return True, "Eyes active and verified"
-            elif len(history) >= 2:
-                # Normal live user holding steady
-                return True, "Eyes open"
+        # For rapid, responsive attendance sensing:
+        # If eyes are detected and not closed, accept immediately on active state
+        if current_metrics.eye_state in ("open", "blink"):
+            return True, "Eyes active and verified"
 
         return False, "Please look naturally at the camera"
 

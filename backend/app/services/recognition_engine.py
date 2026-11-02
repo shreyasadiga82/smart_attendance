@@ -34,7 +34,7 @@ class SmartAttendanceEngine:
         self.eye_sensor = EyeSensor()
         self.tracker = SpatialFaceTracker(max_stale_seconds=2.5, iou_threshold=0.25)
         self.session_service = SessionService()
-        self.threshold = settings.RECOGNITION_THRESHOLD or 0.45
+        self.threshold = settings.RECOGNITION_THRESHOLD or 0.40
 
         # In-memory student cache: student_id -> (name, roll_no)
         self._student_cache: Dict[int, Tuple[str, str]] = {}
@@ -102,8 +102,8 @@ class SmartAttendanceEngine:
 
         attendance_service = AttendanceService(db) if db is not None else None
 
-        for idx, (track_id, bbox, trk) in enumerate(tracked_results):
-            face_info = detected_faces[idx] if idx < len(detected_faces) else None
+        for (track_id, bbox, trk, b_idx) in tracked_results:
+            face_info = detected_faces[b_idx] if b_idx < len(detected_faces) else None
             if not face_info:
                 continue
 
@@ -211,10 +211,10 @@ class SmartAttendanceEngine:
                 status = "unknown"
 
             results.append({
-                "bbox": bbox,
-                "track_id": track_id,
-                "confidence": round(confidence, 3),
-                "student_id": student_id,
+                "bbox": [int(v) for v in bbox],
+                "track_id": int(track_id),
+                "confidence": float(round(float(confidence), 3)),
+                "student_id": int(student_id) if student_id is not None else None,
                 "student_name": student_name,
                 "roll_no": roll_no,
                 "status": status,

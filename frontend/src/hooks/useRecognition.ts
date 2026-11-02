@@ -14,12 +14,14 @@ interface UseRecognitionReturn {
   error: string | null
   sendFrame: (frame: HTMLVideoElement | string) => void
   connected: boolean
+  frameSize: { width: number; height: number }
 }
 
 export const useRecognition = (options: UseRecognitionOptions = {}): UseRecognitionReturn => {
   const { active = false } = options
   const { socket, connected, connect, disconnect, sendMessage } = useWebSocket()
   const [results, setResults] = useState<RecognitionResult[]>([])
+  const [frameSize, setFrameSize] = useState<{ width: number; height: number }>({ width: 640, height: 480 })
   const [isProcessing, setIsProcessing] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const lastFrameTime = useRef<number>(0)
@@ -47,6 +49,9 @@ export const useRecognition = (options: UseRecognitionOptions = {}): UseRecognit
       try {
         const data = JSON.parse(event.data)
         if (data.type === 'recognition_results') {
+          if (data.frame_width && data.frame_height) {
+            setFrameSize({ width: data.frame_width, height: data.frame_height })
+          }
           const rawList = data.results || []
           const normalized: RecognitionResult[] = rawList.map((r: any) => ({
             ...r,
@@ -116,6 +121,7 @@ export const useRecognition = (options: UseRecognitionOptions = {}): UseRecognit
     isProcessing,
     error,
     sendFrame,
-    connected
+    connected,
+    frameSize
   }
 }

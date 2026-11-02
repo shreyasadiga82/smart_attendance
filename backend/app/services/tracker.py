@@ -45,8 +45,8 @@ def compute_centroid_distance_norm(boxA: List[int], boxB: List[int]) -> float:
 
 class TrackedFace:
     def __init__(self, track_id: int, bbox: List[int]):
-        self.track_id = track_id
-        self.bbox = bbox
+        self.track_id = int(track_id)
+        self.bbox = [int(v) for v in bbox]
         self.created_at = time.time()
         self.last_seen = time.time()
         self.frames_tracked = 1
@@ -73,10 +73,10 @@ class SpatialFaceTracker:
         self.tracks: Dict[int, TrackedFace] = {}
         self._next_id = 1
 
-    def update(self, detected_bboxes: List[List[int]]) -> List[Tuple[int, List[int], TrackedFace]]:
+    def update(self, detected_bboxes: List[List[int]]) -> List[Tuple[int, List[int], TrackedFace, int]]:
         """
         Match detected bounding boxes to existing tracks or create new tracks.
-        Returns list of (track_id, bbox, tracked_face).
+        Returns list of (track_id, bbox, tracked_face, detected_bbox_idx).
         """
         now = time.time()
 
@@ -97,7 +97,7 @@ class SpatialFaceTracker:
             # Score matrix
             cost_matrix = []
             for b_idx in unmatched_bboxes:
-                box = detected_bboxes[b_idx]
+                box = [int(v) for v in detected_bboxes[b_idx]]
                 row = []
                 for tid in unmatched_tracks:
                     trk_box = self.tracks[tid].bbox
@@ -127,29 +127,30 @@ class SpatialFaceTracker:
                     used_bboxes.add(b_idx)
                     used_tracks.add(tid)
                     trk = self.tracks[tid]
-                    box = detected_bboxes[b_idx]
+                    box = [int(v) for v in detected_bboxes[b_idx]]
                     trk.bbox = box
                     trk.last_seen = now
                     trk.frames_tracked += 1
-                    matched_results.append((tid, box, trk))
+                    matched_results.append((tid, box, trk, b_idx))
 
             # Remaining unmatched bboxes get new tracks
             for b_idx in unmatched_bboxes:
                 if b_idx not in used_bboxes:
                     tid = self._next_id
                     self._next_id += 1
-                    box = detected_bboxes[b_idx]
+                    box = [int(v) for v in detected_bboxes[b_idx]]
                     trk = TrackedFace(track_id=tid, bbox=box)
                     self.tracks[tid] = trk
-                    matched_results.append((tid, box, trk))
+                    matched_results.append((tid, box, trk, b_idx))
         else:
             # No existing tracks, register all as new
-            for box in detected_bboxes:
+            for b_idx, box in enumerate(detected_bboxes):
                 tid = self._next_id
                 self._next_id += 1
-                trk = TrackedFace(track_id=tid, bbox=box)
+                clean_box = [int(v) for v in box]
+                trk = TrackedFace(track_id=tid, bbox=clean_box)
                 self.tracks[tid] = trk
-                matched_results.append((tid, box, trk))
+                matched_results.append((tid, clean_box, trk, b_idx))
 
         return matched_results
 

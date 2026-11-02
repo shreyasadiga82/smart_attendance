@@ -23,9 +23,16 @@ export const CameraView: React.FC<CameraViewProps> = ({ className = '' }) => {
     toggleStream,
     captureFrame
   } = useCamera()
-  const { results, isProcessing, error: recognitionError, sendFrame } = useRecognition({
+  const { results, isProcessing, error: recognitionError, sendFrame, frameSize } = useRecognition({
     active: isStreaming
   })
+
+  // Auto-request camera stream on mount if not yet active
+  useEffect(() => {
+    if (!isStreaming) {
+      requestCameraAccess()
+    }
+  }, [isStreaming, requestCameraAccess])
 
   // Send frames periodically when streaming
   useEffect(() => {
@@ -36,7 +43,7 @@ export const CameraView: React.FC<CameraViewProps> = ({ className = '' }) => {
       if (frame && sendFrame) {
         sendFrame(frame)
       }
-    }, 400) // ~2.5 FPS for recognition
+    }, 350) // ~2.8 FPS for smooth responsive recognition
 
     return () => clearInterval(interval)
   }, [isStreaming, captureFrame, sendFrame])
@@ -57,6 +64,7 @@ export const CameraView: React.FC<CameraViewProps> = ({ className = '' }) => {
         videoRef={videoRef}
         results={results}
         isProcessing={isProcessing}
+        frameSize={frameSize}
       />
 
       {/* Status banner */}

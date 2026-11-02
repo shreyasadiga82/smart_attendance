@@ -82,24 +82,40 @@ class InsightFaceEngine(FaceEngine):
             import insightface
             self.model = insightface.app.FaceAnalysis(name=self.model_name)
             self.model.prepare(ctx_id=0, det_size=(640, 640))
-            logger.info(f"Loaded InsightFace model: {self.model_name}")
+            if hasattr(self.model, 'det_model') and self.model.det_model is not None:
+                self.model.det_model.det_thresh = 0.40
+            logger.info(f"Loaded InsightFace model: {self.model_name} (det_thresh=0.40)")
         except Exception as e:
             logger.error(f"Failed to load InsightFace model: {e}")
             raise
 
     def detect_faces(self, frame: np.ndarray) -> List[Dict]:
-        if self.model is None:
+        if self.model is None or frame is None or frame.size == 0:
             return []
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        faces = self.model.get(rgb_frame)
+        # InsightFace expects standard OpenCV BGR image and performs swapRB internally
+        faces = self.model.get(frame)
         results = []
+        h, w = frame.shape[:2]
         for face in faces:
-            bbox = face.bbox.astype(int)
-            landmarks = face.landmark_2d_106 if hasattr(face, 'landmark_2d_106') else face.landmarks
-            face_img = face.aligned_image if hasattr(face, 'aligned_image') else frame[bbox[1]:bbox[3], bbox[0]:bbox[2]]
+            raw_box = face.bbox.astype(int)
+            x1 = max(0, min(w - 1, int(raw_box[0])))
+            y1 = max(0, min(h - 1, int(raw_box[1])))
+            x2 = max(x1 + 1, min(w, int(raw_box[2])))
+            y2 = max(y1 + 1, min(h, int(raw_box[3])))
+            clean_bbox = [x1, y1, x2, y2]
+
+            landmarks = None
+            if hasattr(face, 'landmark_3d_68') and face.landmark_3d_68 is not None:
+                landmarks = face.landmark_3d_68
+            elif hasattr(face, 'landmark_2d_106') and face.landmark_2d_106 is not None:
+                landmarks = face.landmark_2d_106
+            elif hasattr(face, 'kps') and face.kps is not None:
+                landmarks = face.kps
+
+            face_img = frame[y1:y2, x1:x2]
             embedding = face.embedding if hasattr(face, 'embedding') else None
             results.append({
-                "bbox": bbox.tolist(),
+                "bbox": clean_bbox,
                 "image": face_img,
                 "embedding": embedding,
                 "landmarks": landmarks,
@@ -108,11 +124,11 @@ class InsightFaceEngine(FaceEngine):
         return results
 
     def get_embedding(self, face_image: np.ndarray) -> Optional[np.ndarray]:
-        if self.model is None:
+        if self.model is None or face_image is None or face_image.size == 0:
             return None
         try:
-            rgb_image = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
-            faces = self.model.get(rgb_image)
+            # Pass BGR image directly to match InsightFace's internal color handling
+            faces = self.model.get(face_image)
             if faces:
                 return faces[0].embedding
             return None
@@ -137,12 +153,8 @@ class InsightFaceEngine(FaceEngine):
                 sim = float(np.dot(embedding_norm, known_norm))
                 similarities.append(sim)
 
-            # High-accuracy composite score: best sample with secondary support
-            similarities.sort(reverse=True)
-            if len(similarities) >= 2:
-                student_score = 0.75 * similarities[0] + 0.25 * similarities[1]
-            else:
-                student_score = similarities[0]
+            # Best sample score for this enrolled student
+            student_score = max(similarities)
 
             if student_score > best_score:
                 second_best_score = best_score
@@ -151,11 +163,12 @@ class InsightFaceEngine(FaceEngine):
             elif student_score > second_best_score:
                 second_best_score = student_score
 
-        if best_score < self.threshold:
+        effective_threshold = self.threshold or 0.40
+        if best_score < effective_threshold:
             return None, float(best_score)
 
-        # Ambiguity margin check: prevent false-positives when two different students score similarly
-        if second_best_score > 0 and (best_score - second_best_score) < 0.035 and best_score < 0.65:
+        # Ambiguity check: only reject if the competitor is also a valid match above threshold
+        if second_best_score >= effective_threshold and (best_score - second_best_score) < 0.025:
             logger.info(f"Ambiguous match rejected: 1st={best_score:.3f}, 2nd={second_best_score:.3f}")
             return None, float(best_score)
 
@@ -237,7 +250,7 @@ class OpenCVSFaceEngine(FaceEngine):
         if faces_status and faces is not None:
             for face in faces:
                 bbox = face[0:4].astype(int)
-                bbox_xyxy = [bbox[0], bbox[1], bbox[0]+bbox[2], bbox[1]+bbox[3]]
+                bbox_xyxy = [int(bbox[0]), int(bbox[1]), int(bbox[0]+bbox[2]), int(bbox[1]+bbox[3])]
                 
                 aligned_face = self.recognizer.alignCrop(frame, face)
                 embedding = self.recognizer.feature(aligned_face)
@@ -287,11 +300,7 @@ class OpenCVSFaceEngine(FaceEngine):
                 ))
                 similarities.append(sim)
 
-            similarities.sort(reverse=True)
-            if len(similarities) >= 2:
-                student_score = 0.75 * similarities[0] + 0.25 * similarities[1]
-            else:
-                student_score = similarities[0]
+            student_score = max(similarities)
 
             if student_score > best_score:
                 second_best_score = best_score
@@ -300,10 +309,11 @@ class OpenCVSFaceEngine(FaceEngine):
             elif student_score > second_best_score:
                 second_best_score = student_score
 
-        if best_score < self.threshold:
+        effective_threshold = self.threshold or 0.36
+        if best_score < effective_threshold:
             return None, float(best_score)
 
-        if second_best_score > 0 and (best_score - second_best_score) < 0.035 and best_score < 0.60:
+        if second_best_score >= effective_threshold and (best_score - second_best_score) < 0.025:
             logger.info(f"Ambiguous SFace match rejected: 1st={best_score:.3f}, 2nd={second_best_score:.3f}")
             return None, float(best_score)
 

@@ -31,26 +31,48 @@ export interface RecognitionResult {
 interface FaceOverlayProps {
   videoRef: React.RefObject<HTMLVideoElement>
   results: RecognitionResult[]
-  isProcessing: boolean
+  isProcessing?: boolean
+  frameSize?: { width: number; height: number }
 }
 
 export const FaceOverlay: React.FC<FaceOverlayProps> = ({
   videoRef,
   results,
-  isProcessing
+  isProcessing,
+  frameSize
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null)
-  const [scale, setScale] = React.useState<{ x: number; y: number }>({ x: 1, y: 1 })
+  const [transform, setTransform] = React.useState<{ scaleX: number; scaleY: number; offsetX: number; offsetY: number }>({
+    scaleX: 1,
+    scaleY: 1,
+    offsetX: 0,
+    offsetY: 0
+  })
 
-  // Recalculate scaling based on video intrinsic dimensions vs rendered container
+  // Recalculate scaling based on video intrinsic dimensions vs rendered container with object-cover mapping
   React.useEffect(() => {
     const updateScale = () => {
       const video = videoRef.current
       const container = containerRef.current
-      if (video && container && video.videoWidth > 0 && video.videoHeight > 0) {
-        setScale({
-          x: container.clientWidth / video.videoWidth,
-          y: container.clientHeight / video.videoHeight
+      if (!video || !container) return
+
+      const vw = frameSize?.width || video.videoWidth || 640
+      const vh = frameSize?.height || video.videoHeight || 480
+      const cw = container.clientWidth
+      const ch = container.clientHeight
+
+      if (vw > 0 && vh > 0 && cw > 0 && ch > 0) {
+        const scale = Math.max(cw / vw, ch / vh)
+        const renderW = vw * scale
+        const renderH = vh * scale
+        const offsetX = (cw - renderW) / 2
+        const offsetY = (ch - renderH) / 2
+
+        setTransform({
+          scaleX: scale,
+          scaleY: scale,
+          offsetX,
+          offsetY
         })
       }
     }
@@ -58,7 +80,7 @@ export const FaceOverlay: React.FC<FaceOverlayProps> = ({
     updateScale()
     window.addEventListener('resize', updateScale)
     return () => window.removeEventListener('resize', updateScale)
-  }, [videoRef, results])
+  }, [videoRef, results, frameSize])
 
   return (
     <div
@@ -70,19 +92,19 @@ export const FaceOverlay: React.FC<FaceOverlayProps> = ({
         const rollNo = result.rollNo || result.roll_no
         const eyeSensor = result.eye_sensor
 
-        // Compute scaled bounding box
-        const x1 = Math.round(result.bbox[0] * scale.x)
-        const y1 = Math.round(result.bbox[1] * scale.y)
-        const x2 = Math.round(result.bbox[2] * scale.x)
-        const y2 = Math.round(result.bbox[3] * scale.y)
+        // Compute scaled bounding box with centering offset
+        const x1 = Math.round(result.bbox[0] * transform.scaleX + transform.offsetX)
+        const y1 = Math.round(result.bbox[1] * transform.scaleY + transform.offsetY)
+        const x2 = Math.round(result.bbox[2] * transform.scaleX + transform.offsetX)
+        const y2 = Math.round(result.bbox[3] * transform.scaleY + transform.offsetY)
         const width = Math.max(30, x2 - x1)
         const height = Math.max(30, y2 - y1)
 
         // Eye coordinates
-        const lx = eyeSensor?.left_eye?.[0] ? Math.round(eyeSensor.left_eye[0] * scale.x) : null
-        const ly = eyeSensor?.left_eye?.[1] ? Math.round(eyeSensor.left_eye[1] * scale.y) : null
-        const rx = eyeSensor?.right_eye?.[0] ? Math.round(eyeSensor.right_eye[0] * scale.x) : null
-        const ry = eyeSensor?.right_eye?.[1] ? Math.round(eyeSensor.right_eye[1] * scale.y) : null
+        const lx = eyeSensor?.left_eye?.[0] ? Math.round(eyeSensor.left_eye[0] * transform.scaleX + transform.offsetX) : null
+        const ly = eyeSensor?.left_eye?.[1] ? Math.round(eyeSensor.left_eye[1] * transform.scaleY + transform.offsetY) : null
+        const rx = eyeSensor?.right_eye?.[0] ? Math.round(eyeSensor.right_eye[0] * transform.scaleX + transform.offsetX) : null
+        const ry = eyeSensor?.right_eye?.[1] ? Math.round(eyeSensor.right_eye[1] * transform.scaleY + transform.offsetY) : null
 
         // Determine theme & borders based on status
         let borderColor = 'border-rose-500'

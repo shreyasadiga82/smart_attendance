@@ -115,7 +115,7 @@ class Settings(BaseSettings):
             if self.MAX_FACES is None:
                 self.MAX_FACES = 5
             if self.RECOGNITION_THRESHOLD is None:
-                self.RECOGNITION_THRESHOLD = 0.45
+                self.RECOGNITION_THRESHOLD = 0.40
         return self
 
     class Config:

@@ -216,11 +216,13 @@ async def add_student_biometrics(
 
     db.commit()
 
-    # Update in-memory face engine
+    # Update in-memory face engine and smart attendance engine
     try:
         face_engine.load_embeddings_from_db(db)
-    except Exception:
-        pass
+        from app.services.recognition_engine import get_smart_engine
+        get_smart_engine().refresh_embeddings(db)
+    except Exception as e:
+        logger.warning(f"Could not refresh smart engine embeddings: {e}")
 
     total_embeddings = db.query(FaceEmbedding).filter(FaceEmbedding.student_id == student.id).count()
 
@@ -249,8 +251,10 @@ async def delete_student_biometrics(
     try:
         face_engine = get_engine()
         face_engine.load_embeddings_from_db(db)
-    except Exception:
-        pass
+        from app.services.recognition_engine import get_smart_engine
+        get_smart_engine().refresh_embeddings(db)
+    except Exception as e:
+        logger.warning(f"Could not refresh smart engine embeddings on delete: {e}")
 
     return {
         "success": True,

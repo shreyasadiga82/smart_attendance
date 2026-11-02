@@ -1,11 +1,14 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Chip } from '../components/ui/Chip'
 import { Avatar } from '../components/ui/Avatar'
 import { EmptyState } from '../components/ui/EmptyState'
 import { CameraPicker } from '../components/camera/CameraPicker'
+import { FaceOverlay } from '../components/camera/FaceOverlay'
+import { StatusBanner } from '../components/camera/StatusBanner'
 import { useCamera } from '../hooks/useCamera'
+import { useRecognition } from '../hooks/useRecognition'
 import { apiRequest } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import {
@@ -75,6 +78,111 @@ export const TeacherDashboard: React.FC = () => {
     selectDevice,
     captureFrame
   } = useCamera()
+
+  // Real-time biometric face & eye recognition hook
+  const {
+    results: recognitionResults,
+    isProcessing,
+    error: recognitionError,
+    sendFrame,
+    frameSize
+  } = useRecognition({
+    active: activeMode === 'camera' && isStreaming
+  })
+
+  // Stream video frames periodically for real-time sensing
+  useEffect(() => {
+    if (activeMode !== 'camera' || !isStreaming) return
+
+    const interval = setInterval(() => {
+      const frame = captureFrame()
+      if (frame && sendFrame) {
+        sendFrame(frame)
+      }
+    }, 350)
+
+    return () => clearInterval(interval)
+  }, [activeMode, isStreaming, captureFrame, sendFrame])
+
+  // Track live recognitions feed
+  const [liveRecognitions, setLiveRecognitions] = useState<Array<{
+    studentId: number
+    name: string
+    rollNo: string
+    status: string
+    timestamp: string
+    confidence: number
+    timeMs: number
+  }>>([])
+
+  // Synthesized audio feedback chime
+  const playChime = useCallback(() => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      if (!AudioCtx) return
+      const ctx = new AudioCtx()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime) // D5
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1) // A5
+      gain.gain.setValueAtTime(0.12, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.35)
+    } catch {
+      // Audio context restricted or muted
+    }
+  }, [])
+
+  // Process recognition results: mark student present & update live feed
+  useEffect(() => {
+    if (!recognitionResults || recognitionResults.length === 0) return
+
+    recognitionResults.forEach(res => {
+      const sId = res.studentId || res.student_id
+      if ((res.status === 'marked' || res.status === 'already_marked') && sId) {
+        const student = students.find(s => s.id === sId)
+        if (student) {
+          // Update status map in roll call sheet
+          setStatusMap(prev => {
+            if (prev[student.id] !== 'present') {
+              playChime()
+              return { ...prev, [student.id]: 'present' }
+            }
+            return prev
+          })
+
+          // Add to live recognitions feed
+          const nowStr = new Date().toLocaleTimeString(undefined, {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+          })
+          const nowMs = Date.now()
+          setLiveRecognitions(prev => {
+            if (prev.some(r => r.studentId === student.id && (nowMs - r.timeMs < 6000))) {
+              return prev
+            }
+            return [
+              {
+                studentId: student.id,
+                name: student.name,
+                rollNo: student.roll_no,
+                status: res.status,
+                timestamp: nowStr,
+                confidence: res.confidence,
+                timeMs: nowMs
+              },
+              ...prev.slice(0, 19)
+            ]
+          })
+        }
+      }
+    })
+  }, [recognitionResults, students, playChime])
 
   // Load data
   const loadData = async () => {
@@ -514,9 +622,9 @@ export const TeacherDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Video Viewfinder */}
+          {/* Video Viewfinder & Live Attendance Panel */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2 relative w-full h-80 bg-black rounded-xl overflow-hidden flex items-center justify-center shadow-md">
+            <div className="lg:col-span-2 relative w-full h-[450px] bg-black rounded-xl overflow-hidden flex items-center justify-center shadow-md">
               <video
                 ref={videoRef}
                 autoPlay
@@ -525,17 +633,24 @@ export const TeacherDashboard: React.FC = () => {
                 className="w-full h-full object-cover"
               />
 
-              {/* Viewfinder Target */}
-              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div className="w-56 h-64 border-2 border-dashed border-emerald-400/80 rounded-2xl flex flex-col items-center justify-end pb-3">
-                  <span className="text-[10px] bg-black/70 text-emerald-300 px-2.5 py-0.5 rounded-full font-mono">
-                    Target Recognition Zone
-                  </span>
-                </div>
+              {/* Dynamic Face Sensing Overlay */}
+              <FaceOverlay
+                videoRef={videoRef}
+                results={recognitionResults}
+                isProcessing={isProcessing}
+                frameSize={frameSize}
+              />
+
+              {/* Status Banner */}
+              <div className="absolute bottom-3 left-3 right-3 z-20 pointer-events-none">
+                <StatusBanner
+                  results={recognitionResults}
+                  isProcessing={isProcessing}
+                />
               </div>
 
               {!isStreaming && (
-                <div className="absolute inset-0 bg-gray-900/95 flex flex-col items-center justify-center text-center p-4">
+                <div className="absolute inset-0 bg-gray-900/95 flex flex-col items-center justify-center text-center p-4 z-30">
                   <Camera className="w-12 h-12 text-gray-400 mb-2 animate-bounce" />
                   <p className="text-sm font-semibold text-gray-200">
                     {cameraError || 'Device camera ready for activation'}
@@ -554,19 +669,47 @@ export const TeacherDashboard: React.FC = () => {
 
             {/* Recent Live recognitions */}
             <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700 flex flex-col">
-              <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2 flex items-center justify-between">
-                <span>Recent Recognitions</span>
-                <span className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 px-2 py-0.5 rounded-full">
-                  Live
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  Live Attendance Feed
+                </h3>
+                <span className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live Sensor
                 </span>
-              </h3>
+              </div>
 
-              <div className="flex-1 overflow-y-auto space-y-2 max-h-64 divide-y divide-gray-100 dark:divide-gray-800">
-                {classStudents.filter(s => statusMap[s.id] === 'present').length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-8">
-                    No recognitions yet this session. Students walking in will appear here.
-                  </p>
-                ) : (
+              <div className="flex-1 overflow-y-auto space-y-2 max-h-[380px] divide-y divide-gray-100 dark:divide-gray-800">
+                {liveRecognitions.length > 0 ? (
+                  liveRecognitions.map(rec => (
+                    <div key={`${rec.studentId}-${rec.timeMs}`} className="pt-2 flex items-center justify-between text-xs animate-fade-in">
+                      <div className="flex items-center space-x-2">
+                        <Avatar className="w-7 h-7" name={rec.name} />
+                        <div>
+                          <p className="font-semibold text-gray-800 dark:text-gray-200">{rec.name}</p>
+                          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-mono">
+                            <span>{rec.rollNo}</span>
+                            <span>•</span>
+                            <span>{rec.timestamp}</span>
+                            {rec.confidence > 0 && (
+                              <>
+                                <span>•</span>
+                                <span className="text-emerald-600 font-bold">{(rec.confidence * 100).toFixed(0)}%</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                        rec.status === 'already_marked'
+                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                      }`}>
+                        {rec.status === 'already_marked' ? 'Verified' : 'Marked Present'}
+                      </span>
+                    </div>
+                  ))
+                ) : classStudents.filter(s => statusMap[s.id] === 'present').length > 0 ? (
                   classStudents
                     .filter(s => statusMap[s.id] === 'present')
                     .map(student => (
@@ -579,10 +722,16 @@ export const TeacherDashboard: React.FC = () => {
                           </div>
                         </div>
                         <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded">
-                          Marked Present
+                          Present
                         </span>
                       </div>
                     ))
+                ) : (
+                  <div className="text-xs text-gray-400 text-center py-12 flex flex-col items-center">
+                    <Sparkles className="w-6 h-6 text-gray-300 dark:text-gray-600 mb-2" />
+                    <p>No student detected yet this session.</p>
+                    <p className="text-[10px] mt-1 text-gray-500">Stand facing camera to mark attendance.</p>
+                  </div>
                 )}
               </div>
             </div>

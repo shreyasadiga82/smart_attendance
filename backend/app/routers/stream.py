@@ -89,19 +89,38 @@ async def websocket_recognition_endpoint(
                     continue
                     
                 if message.get("type") == "frame":
-                    img_data = base64.b64decode(message["data"])
+                    frame_data = message.get("data", "")
+                    img_data = base64.b64decode(frame_data)
                     nparr = np.frombuffer(img_data, np.uint8)
                     frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-                    # Execute full recognition, eye sensor analysis, and attendance marking
-                    results = smart_attendance_engine.process_frame(frame, db=db)
+                    results = []
+                    frame_w = 640
+                    frame_h = 480
+                    if frame is not None and frame.size > 0:
+                        frame_h, frame_w = frame.shape[:2]
+                        # Execute full recognition, eye sensor analysis, and attendance marking
+                        results = smart_attendance_engine.process_frame(frame, db=db)
+                        logger.info(f"Stream: frame {frame_w}x{frame_h} -> {len(results)} faces: {[r.get('status') for r in results]}")
+                    else:
+                        logger.warning("Stream: decoded frame is None or empty")
 
                     response = {
                         "type": "recognition_results",
                         "results": results,
+                        "frame_width": int(frame_w),
+                        "frame_height": int(frame_h),
                         "timestamp": message.get("timestamp")
                     }
-                    await manager.send_personal_message(json.dumps(response), websocket)
+
+                    def _safe_serialize(obj):
+                        if isinstance(obj, (np.floating, np.integer)):
+                            return float(obj) if isinstance(obj, np.floating) else int(obj)
+                        if isinstance(obj, np.ndarray):
+                            return obj.tolist()
+                        return str(obj)
+
+                    await manager.send_personal_message(json.dumps(response, default=_safe_serialize), websocket)
                     
                     if edge_device:
                         edge_device.last_seen = datetime.utcnow()

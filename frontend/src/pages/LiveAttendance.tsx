@@ -95,39 +95,46 @@ export const LiveAttendance = () => {
       </header>
 
       {/* Main content */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex flex-col lg:flex-row p-4 gap-4">
         {/* Camera view - takes most of the width */}
         <div className="flex-1 flex flex-col">
           <CameraView className="flex-1" />
-          {/* Today's marked list - sidebar */}
-          <div className="w-64 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700">
-            <div className="px-4 py-3">
-              <h3 className="text-lg font-medium mb-4">Today's Marked</h3>
-              {markedStudents.length > 0 ? (
-                <div className="space-y-2">
-                  {markedStudents.map((student) => (
-                    <div key={student.id} className="flex items-center space-x-3 p-2 bg-gray-50 dark:bg-gray-700 rounded-md">
-                      <Avatar className="h-8 w-8" name={student.name} />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {student.name}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {student.roll_no}
-                        </p>
-                      </div>
-                      <Chip variant="success" size="xs">
-                        Marked
-                      </Chip>
+        </div>
+
+        {/* Today's marked list - sidebar */}
+        <div className="w-full lg:w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
+          <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+            <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">Today's Attendance</h3>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              {markedStudents.length} Marked
+            </span>
+          </div>
+
+          <div className="p-4 flex-1 overflow-y-auto max-h-[600px]">
+            {markedStudents.length > 0 ? (
+              <div className="space-y-2.5">
+                {markedStudents.map((student) => (
+                  <div key={student.id} className="flex items-center space-x-3 p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                    <Avatar className="h-9 w-9 shadow-xs" name={student.name} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                        {student.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                        {student.roll_no}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  No students marked today
-                </p>
-              )}
-            </div>
+                    <Chip variant="success" size="xs">
+                      Marked
+                    </Chip>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                No students marked today yet.
+              </div>
+            )}
           </div>
         </div>
       </div>
