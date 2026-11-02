@@ -122,6 +122,16 @@ export const FaceOverlay: React.FC<FaceOverlayProps> = ({
           glowColor = 'shadow-[0_0_15px_rgba(251,191,36,0.45)]'
           badgeBg = 'bg-amber-950/90 text-amber-200 border-amber-400/60'
           statusTitle = 'Already Marked Today'
+        } else if (result.status === 'please_blink') {
+          borderColor = 'border-amber-400 animate-pulse'
+          glowColor = 'shadow-[0_0_15px_rgba(251,191,36,0.55)]'
+          badgeBg = 'bg-amber-950/90 text-amber-200 border-amber-400/60'
+          statusTitle = 'Please Blink to Verify'
+        } else if (result.status === 'blinking') {
+          borderColor = 'border-sky-400'
+          glowColor = 'shadow-[0_0_20px_rgba(56,189,248,0.65)]'
+          badgeBg = 'bg-sky-950/90 text-sky-200 border-sky-400/60'
+          statusTitle = 'Blink Detected!'
         } else if (result.status === 'recognized') {
           borderColor = 'border-cyan-400'
           glowColor = 'shadow-[0_0_15px_rgba(34,211,238,0.45)]'
@@ -170,9 +180,21 @@ export const FaceOverlay: React.FC<FaceOverlayProps> = ({
               {/* Eye Sensor Indicator Bottom Tag */}
               {eyeSensor?.eyes_detected && (
                 <div className="absolute -bottom-7 left-0 right-0 flex items-center justify-between px-2 py-0.5 rounded-b-lg bg-black/80 backdrop-blur-md border border-t-0 border-white/20 text-[10px]">
-                  <span className="flex items-center gap-1 text-emerald-400 font-medium">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    Eye Sensor: {eyeSensor.eye_state.toUpperCase()}
+                  <span className="flex items-center gap-1 font-medium">
+                    {result.status === 'please_blink' ? (
+                      <span className="text-amber-300 flex items-center gap-1 animate-pulse">
+                        👁 Please blink to verify
+                      </span>
+                    ) : result.status === 'blinking' ? (
+                      <span className="text-sky-300 flex items-center gap-1">
+                        👁 Blink detected!
+                      </span>
+                    ) : (
+                      <span className="text-emerald-400 flex items-center gap-1">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                        Live: {eyeSensor.eye_state.toUpperCase()}
+                      </span>
+                    )}
                   </span>
                   <span className="text-gray-300 font-mono text-[9px]">
                     EAR: {eyeSensor.eye_openness.toFixed(2)}

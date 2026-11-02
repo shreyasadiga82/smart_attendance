@@ -143,6 +143,7 @@ class InsightFaceEngine(FaceEngine):
         best_score = -1.0
         second_best_score = -1.0
         best_student_id = None
+        second_student_id = None
 
         for student_id, embeddings_list in self.embeddings.items():
             if not embeddings_list:
@@ -158,19 +159,25 @@ class InsightFaceEngine(FaceEngine):
 
             if student_score > best_score:
                 second_best_score = best_score
+                second_student_id = best_student_id
                 best_score = student_score
                 best_student_id = student_id
             elif student_score > second_best_score:
                 second_best_score = student_score
+                second_student_id = student_id
 
         effective_threshold = self.threshold or 0.40
         if best_score < effective_threshold:
             return None, float(best_score)
 
-        # Ambiguity check: only reject if the competitor is also a valid match above threshold
-        if second_best_score >= effective_threshold and (best_score - second_best_score) < 0.025:
-            logger.info(f"Ambiguous match rejected: 1st={best_score:.3f}, 2nd={second_best_score:.3f}")
-            return None, float(best_score)
+        # Twin / Sibling discrimination:
+        # When twins or lookalikes are registered, both will show high similarity.
+        # Enforce a distinct margin to guarantee the correct twin is marked!
+        if second_best_score >= 0.42:
+            margin = best_score - second_best_score
+            if margin < 0.035:
+                logger.info(f"Twin differentiation active: top #{best_student_id} ({best_score:.3f}) vs #{second_student_id} ({second_best_score:.3f}), margin={margin:.3f} < 0.035")
+                return None, float(best_score)
 
         return best_student_id, float(best_score)
 
@@ -287,6 +294,7 @@ class OpenCVSFaceEngine(FaceEngine):
         best_score = -1.0
         second_best_score = -1.0
         best_student_id = None
+        second_student_id = None
 
         for student_id, embeddings_list in self.embeddings.items():
             if not embeddings_list:
@@ -304,18 +312,22 @@ class OpenCVSFaceEngine(FaceEngine):
 
             if student_score > best_score:
                 second_best_score = best_score
+                second_student_id = best_student_id
                 best_score = student_score
                 best_student_id = student_id
             elif student_score > second_best_score:
                 second_best_score = student_score
+                second_student_id = student_id
 
         effective_threshold = self.threshold or 0.36
         if best_score < effective_threshold:
             return None, float(best_score)
 
-        if second_best_score >= effective_threshold and (best_score - second_best_score) < 0.025:
-            logger.info(f"Ambiguous SFace match rejected: 1st={best_score:.3f}, 2nd={second_best_score:.3f}")
-            return None, float(best_score)
+        if second_best_score >= 0.38:
+            margin = best_score - second_best_score
+            if margin < 0.035:
+                logger.info(f"Twin differentiation active (SFace): top #{best_student_id} ({best_score:.3f}) vs #{second_student_id} ({second_best_score:.3f}), margin={margin:.3f} < 0.035")
+                return None, float(best_score)
 
         return best_student_id, float(best_score)
 

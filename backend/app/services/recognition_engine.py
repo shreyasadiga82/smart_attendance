@@ -153,15 +153,46 @@ class SmartAttendanceEngine:
 
             if student_id is not None and confidence >= self.threshold:
                 # Face matches an enrolled student!
-                # Check eye sensor requirements
+                # 6a. Multi-frame candidate score smoothing (twin & noise resilience)
+                if student_id not in trk.candidate_scores:
+                    trk.candidate_scores[student_id] = []
+                trk.candidate_scores[student_id].append(confidence)
+                trk.candidate_scores[student_id] = trk.candidate_scores[student_id][-8:]
+
+                # 6b. Anti-Photo Spoofing: Eye Blink Detection
+                # A photo or screen has static eyes and never blinks.
+                # Real human blinks: open -> closed/dip -> open.
+                avg_ear = eye_metrics.avg_openness
+                if avg_ear >= 0.16 or eye_metrics.eye_state == "open":
+                    trk.saw_open = True
+                    if trk.baseline_openness == 0.0:
+                        trk.baseline_openness = avg_ear
+                    else:
+                        trk.baseline_openness = 0.85 * trk.baseline_openness + 0.15 * avg_ear
+
+                    # If eyes dipped to closed/blink earlier on this track and are now open again:
+                    if trk.saw_blink and not trk.blink_completed:
+                        trk.blink_completed = True
+                        trk.blink_time = time.time()
+                        trk.blink_count += 1
+                        eye_metrics.liveness_verified = True
+                        eye_metrics.status_message = "Blink verified!"
+                        logger.info(f"Eye blink verified for {student_name} [Track {track_id}] (count={trk.blink_count})")
+                elif eye_metrics.eye_state in ("closed", "blink") or (trk.saw_open and avg_ear <= 0.125):
+                    trk.saw_blink = True
+                    eye_metrics.status_message = "Blinking..."
+
+                # Check requirements
                 if not eye_metrics.eyes_detected:
                     status = "eyes_not_detected"
-                elif eye_metrics.eye_state == "closed":
-                    status = "eyes_closed"
-                elif check_liveness and not is_live:
-                    status = "verifying_eyes"
+                elif check_liveness and not trk.blink_completed:
+                    # Liveness enabled: attendance is strictly locked until a genuine blink occurs!
+                    if trk.saw_blink:
+                        status = "blinking"
+                    else:
+                        status = "please_blink"
                 else:
-                    # Eye sensor passed and face matched!
+                    # Blink verified (or liveness disabled) and face matched!
                     status = "recognized"
 
                     if db is not None and attendance_service is not None:
@@ -184,7 +215,7 @@ class SmartAttendanceEngine:
                                 try:
                                     note_str = (
                                         f"Face recognized {confidence * 100:.1f}%, "
-                                        f"Eye sensor: {eye_metrics.eye_state} (EAR={eye_metrics.avg_openness:.2f}, sharp={eye_metrics.sharpness:.0f})"
+                                        f"Blink verified (EAR={avg_ear:.2f}, sharp={eye_metrics.sharpness:.0f})"
                                     )
                                     attendance_service.mark_attendance(
                                         student_id=student_id,
@@ -196,7 +227,7 @@ class SmartAttendanceEngine:
                                     )
                                     status = "marked"
                                     trk.attendance_marked = True
-                                    logger.info(f"Marked attendance for {student_name} ({roll_no}) [Track {track_id}]")
+                                    logger.info(f"Marked attendance for {student_name} ({roll_no}) [Track {track_id}] after blink verification")
                                 except ValueError as ve:
                                     # Already marked or cooldown
                                     if "already marked" in str(ve).lower():
@@ -218,6 +249,8 @@ class SmartAttendanceEngine:
                 "student_name": student_name,
                 "roll_no": roll_no,
                 "status": status,
+                "blink_verified": bool(trk.blink_completed),
+                "blink_count": int(trk.blink_count),
                 "eye_sensor": eye_metrics.to_dict()
             })
 

@@ -2,12 +2,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.database import get_db
-from app.models import Attendance, Student, User
-from app.schemas import AttendanceCreate, AttendanceUpdate, AttendanceInDB, AttendanceWithStudent
+from app.models import Attendance, Student, User, AuditLog
+from app.schemas import (
+    AttendanceCreate,
+    AttendanceUpdate,
+    AttendanceInDB,
+    AttendanceWithStudent,
+    AttendanceClearRequest,
+    AttendanceClearResponse
+)
 from app.services.attendance_service import AttendanceService
 from app.deps import get_current_active_user
 from app.config import settings
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 
 router = APIRouter()
@@ -64,6 +71,52 @@ async def read_attendance(
         query = query.filter(Attendance.session == session)
     attendance_records = query.order_by(Attendance.timestamp.desc()).offset(skip).limit(limit).all()
     return attendance_records
+
+
+@router.post("/clear", response_model=AttendanceClearResponse)
+async def clear_attendance(
+    payload: AttendanceClearRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    query = db.query(Attendance)
+
+    if payload.class_name:
+        subq = db.query(Student.id).filter(Student.class_name == payload.class_name).subquery()
+        query = query.filter(Attendance.student_id.in_(subq))
+    if payload.session:
+        query = query.filter(Attendance.session == payload.session)
+
+    if payload.older_than_days is not None:
+        cutoff = date.today() - timedelta(days=payload.older_than_days)
+        query = query.filter(Attendance.date < cutoff)
+    elif payload.before_date:
+        query = query.filter(Attendance.date < payload.before_date)
+    elif payload.clear_all:
+        pass
+    else:
+        # Default safety: clear records strictly before today
+        query = query.filter(Attendance.date < date.today())
+
+    deleted_count = query.delete(synchronize_session=False)
+
+    try:
+        audit = AuditLog(
+            user_id=current_user.id,
+            action="CLEAR_ATTENDANCE",
+            details=f"Cleared {deleted_count} attendance records (days={payload.older_than_days}, before_date={payload.before_date}, clear_all={payload.clear_all})"
+        )
+        db.add(audit)
+    except Exception:
+        pass
+
+    db.commit()
+
+    return AttendanceClearResponse(
+        status="success",
+        deleted_count=deleted_count,
+        message=f"Successfully cleared {deleted_count} attendance record{'s' if deleted_count != 1 else ''}."
+    )
 
 
 @router.put("/{attendance_id}", response_model=AttendanceInDB)

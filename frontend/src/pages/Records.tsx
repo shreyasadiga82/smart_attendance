@@ -9,7 +9,7 @@ import { Dialog } from '../components/ui/Dialog'
 import { useAuth } from '../lib/auth'
 import { apiRequest } from '../lib/api'
 import { formatTime } from '../lib/utils'
-import { Download, FileSpreadsheet, Trash2, Edit2, CheckCircle2, Clock } from 'lucide-react'
+import { Download, FileSpreadsheet, Trash2, Edit2, CheckCircle2, Clock, AlertTriangle } from 'lucide-react'
 
 interface AttendanceRecord {
   id: number
@@ -49,6 +49,12 @@ export const Records: React.FC = () => {
   const [editNote, setEditNote] = useState<string>('')
   const [editMethod, setEditMethod] = useState<string>('manual')
   const [savingEdit, setSavingEdit] = useState<boolean>(false)
+
+  // Clear records state
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState<boolean>(false)
+  const [clearOption, setClearOption] = useState<'before_today' | '30days' | '7days' | 'all'>('before_today')
+  const [clearing, setClearing] = useState<boolean>(false)
+  const [clearMessage, setClearMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const fetchRecords = async () => {
     try {
@@ -135,6 +141,37 @@ export const Records: React.FC = () => {
     }
   }
 
+  const handleClearRecords = async () => {
+    try {
+      setClearing(true)
+      let payload: any = {}
+      if (clearOption === '30days') {
+        payload = { older_than_days: 30 }
+      } else if (clearOption === '7days') {
+        payload = { older_than_days: 7 }
+      } else if (clearOption === 'before_today') {
+        payload = { before_date: new Date().toISOString().split('T')[0] }
+      } else if (clearOption === 'all') {
+        payload = { clear_all: true }
+      }
+
+      const res = await apiRequest<{ status: string; deleted_count: number; message: string }>(
+        '/attendance/clear',
+        {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        }
+      )
+      setClearMessage({ type: 'success', text: res.message || `Cleared ${res.deleted_count} records.` })
+      fetchRecords()
+      setIsClearDialogOpen(false)
+    } catch (e: any) {
+      setClearMessage({ type: 'error', text: e.message || 'Failed to clear records' })
+    } finally {
+      setClearing(false)
+    }
+  }
+
   const handleOpenEdit = (record: AttendanceRecord) => {
     setEditingRecord(record)
     setEditNote(record.note || '')
@@ -180,6 +217,16 @@ export const Records: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setIsClearDialogOpen(true)}
+            className="text-rose-600 hover:text-white hover:bg-rose-600 dark:text-rose-400 dark:hover:bg-rose-600 border-rose-200 dark:border-rose-900/50 shadow-2xs"
+            title="Clear old attendance records"
+          >
+            <Trash2 className="w-3.5 h-3.5 mr-1" />
+            Clear Old Records
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleExportCSV}
           >
             <Download className="w-3.5 h-3.5 mr-1" />
@@ -195,6 +242,30 @@ export const Records: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Clear notification message */}
+      {clearMessage && (
+        <div className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
+          clearMessage.type === 'success'
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+            : 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {clearMessage.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-rose-500" />
+            )}
+            <span className="font-medium">{clearMessage.text}</span>
+          </div>
+          <button
+            onClick={() => setClearMessage(null)}
+            className="text-gray-400 hover:text-gray-600 text-xs font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Filter Bar */}
       <Card className="p-4 bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700">
@@ -415,6 +486,128 @@ export const Records: React.FC = () => {
             </div>
           </div>
         )}
+      </Dialog>
+
+      {/* Clear Old Records Safety Dialog */}
+      <Dialog
+        open={isClearDialogOpen}
+        onClose={() => setIsClearDialogOpen(false)}
+        title="Clear Old Attendance Data"
+      >
+        <div className="space-y-4">
+          <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl flex items-start space-x-2.5">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="text-xs text-amber-800 dark:text-amber-300 space-y-1">
+              <p className="font-semibold">Permanent Database Cleanup</p>
+              <p>
+                Deleting attendance records cannot be undone. Consider exporting an Excel/CSV backup first if you need historical records.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
+              Select records to remove:
+            </label>
+
+            <label className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-primary-500">
+              <input
+                type="radio"
+                name="clearOption"
+                value="before_today"
+                checked={clearOption === 'before_today'}
+                onChange={() => setClearOption('before_today')}
+                className="mt-0.5 text-primary-600 focus:ring-primary-500"
+              />
+              <div className="text-xs">
+                <span className="font-semibold text-gray-900 dark:text-gray-100">
+                  All past records prior to today (Recommended)
+                </span>
+                <p className="text-gray-500 dark:text-gray-400 mt-0.5">
+                  Removes historical days while preserving today's attendance sessions.
+                </p>
+              </div>
+            </label>
+
+            <label className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-primary-500">
+              <input
+                type="radio"
+                name="clearOption"
+                value="30days"
+                checked={clearOption === '30days'}
+                onChange={() => setClearOption('30days')}
+                className="mt-0.5 text-primary-600 focus:ring-primary-500"
+              />
+              <div className="text-xs">
+                <span className="font-semibold text-gray-900 dark:text-gray-100">
+                  Records older than 30 days
+                </span>
+                <p className="text-gray-500 dark:text-gray-400 mt-0.5">
+                  Archives old logs, keeping the last month of activity.
+                </p>
+              </div>
+            </label>
+
+            <label className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer hover:border-primary-500">
+              <input
+                type="radio"
+                name="clearOption"
+                value="7days"
+                checked={clearOption === '7days'}
+                onChange={() => setClearOption('7days')}
+                className="mt-0.5 text-primary-600 focus:ring-primary-500"
+              />
+              <div className="text-xs">
+                <span className="font-semibold text-gray-900 dark:text-gray-100">
+                  Records older than 7 days
+                </span>
+                <p className="text-gray-500 dark:text-gray-400 mt-0.5">
+                  Cleans old weeks, keeping only the current week.
+                </p>
+              </div>
+            </label>
+
+            <label className="flex items-start space-x-3 p-3 bg-rose-50/50 dark:bg-rose-950/20 rounded-xl border border-rose-200 dark:border-rose-900/50 cursor-pointer hover:border-rose-500">
+              <input
+                type="radio"
+                name="clearOption"
+                value="all"
+                checked={clearOption === 'all'}
+                onChange={() => setClearOption('all')}
+                className="mt-0.5 text-rose-600 focus:ring-rose-500"
+              />
+              <div className="text-xs">
+                <span className="font-semibold text-rose-700 dark:text-rose-300">
+                  Clear ALL attendance records (Complete Reset)
+                </span>
+                <p className="text-rose-600/80 dark:text-rose-400/80 mt-0.5">
+                  Completely wipes the entire attendance log table.
+                </p>
+              </div>
+            </label>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsClearDialogOpen(false)}
+              disabled={clearing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleClearRecords}
+              disabled={clearing}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+              {clearing ? 'Clearing Records...' : 'Confirm & Clear Data'}
+            </Button>
+          </div>
+        </div>
       </Dialog>
     </div>
   )

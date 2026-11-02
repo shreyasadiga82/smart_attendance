@@ -60,6 +60,17 @@ class TrackedFace:
         self.already_marked: bool = False
         self.last_attendance_attempt: float = 0.0
 
+        # Anti-Photo Spoofing / Blink verification state
+        self.saw_open: bool = False
+        self.saw_blink: bool = False
+        self.blink_completed: bool = False
+        self.blink_time: float = 0.0
+        self.baseline_openness: float = 0.0
+        self.blink_count: int = 0
+
+        # Twin discrimination temporal smoothing: student_id -> list of cosine similarity scores
+        self.candidate_scores: Dict[int, List[float]] = {}
+
 
 class SpatialFaceTracker:
     """

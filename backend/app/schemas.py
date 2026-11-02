@@ -121,6 +121,20 @@ class AttendanceUpdate(BaseModel):
     note: Optional[str] = None
 
 
+class AttendanceClearRequest(BaseModel):
+    before_date: Optional[date] = None
+    older_than_days: Optional[int] = None
+    clear_all: bool = False
+    session: Optional[str] = None
+    class_name: Optional[str] = None
+
+
+class AttendanceClearResponse(BaseModel):
+    status: str
+    deleted_count: int
+    message: str
+
+
 class AttendanceInDBBase(AttendanceBase):
     id: int
     student_id: int
