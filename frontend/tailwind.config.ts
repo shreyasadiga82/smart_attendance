@@ -2,6 +2,7 @@ import type { Config } from 'tailwindcss'
 import { fontFamily } from 'tailwindcss/defaultTheme'
 
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -9,6 +10,9 @@ export default {
   theme: {
     extend: {
       colors: {
+        gray: {
+          850: '#17202e',
+        },
         // Primary - Indigo (Material You)
         primary: {
           50: '#eef2ff',

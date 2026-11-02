@@ -7,6 +7,7 @@ import { SessionDonut } from '../components/charts/SessionDonut'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Avatar } from '../components/ui/Avatar'
 import { apiRequest } from '../lib/api'
+import { formatTime } from '../lib/utils'
 import { useNavigate } from 'react-router-dom'
 import {
   Video,
@@ -396,7 +397,7 @@ export const Dashboard: React.FC = () => {
                     {activity.student_name}
                   </p>
                   <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                    Roll: {activity.roll_no} • {activity.session}
+                    Roll: {activity.roll_no} • {activity.session} • {formatTime(activity.timestamp)}
                   </p>
                 </div>
                 <Chip variant="success" size="sm" className="text-[10px]">

@@ -5,6 +5,7 @@ import { Input } from '../components/ui/Input'
 import { Switch } from '../components/ui/Switch'
 import { Dialog } from '../components/ui/Dialog'
 import { apiRequest } from '../lib/api'
+import { useTheme } from '../hooks/useTheme'
 import {
   Save,
   Trash2,
@@ -17,7 +18,9 @@ import {
   Send,
   Database,
   Cpu,
-  Monitor
+  Monitor,
+  Sun,
+  Moon
 } from 'lucide-react'
 
 interface SettingsData {
@@ -42,6 +45,7 @@ interface SettingsData {
 }
 
 export const Settings: React.FC = () => {
+  const { isDarkMode, setTheme } = useTheme()
   const [settings, setSettings] = useState<SettingsData>({
     morning_session_start: '08:00',
     morning_session_end: '09:30',
@@ -204,6 +208,52 @@ export const Settings: React.FC = () => {
       )}
 
       <form onSubmit={handleSave} className="space-y-6">
+        {/* Section 0: Appearance & Theme */}
+        <Card className="p-5 bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 space-y-4">
+          <div className="flex items-center space-x-2 border-b border-gray-100 dark:border-gray-700 pb-2">
+            {isDarkMode ? <Moon className="w-4 h-4 text-primary-500" /> : <Sun className="w-4 h-4 text-amber-500" />}
+            <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+              Appearance & Theme
+            </h2>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-200/70 dark:border-gray-700">
+            <div>
+              <p className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                Interface Mode: <span className="text-primary-600 dark:text-primary-400 capitalize">{isDarkMode ? 'Dark Mode' : 'Light Mode'}</span>
+              </p>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                Switch between high-contrast dark theme and clean light theme.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setTheme('light')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  !isDarkMode
+                    ? 'bg-primary-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                <Sun className="w-3.5 h-3.5 text-amber-400" />
+                <span>Light</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme('dark')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  isDarkMode
+                    ? 'bg-primary-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                <Moon className="w-3.5 h-3.5 text-indigo-300" />
+                <span>Dark</span>
+              </button>
+            </div>
+          </div>
+        </Card>
+
         {/* Section 1: Session Timings */}
         <Card className="p-5 bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 space-y-4">
           <div className="flex items-center space-x-2 border-b border-gray-100 dark:border-gray-700 pb-2">

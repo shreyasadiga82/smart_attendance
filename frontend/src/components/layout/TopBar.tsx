@@ -103,11 +103,18 @@ export const TopBar: React.FC = () => {
 
           {/* Theme toggle */}
           <button
+            id="theme-toggle-btn"
             onClick={toggleTheme}
-            className="p-2 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            aria-label="Toggle theme"
+            type="button"
+            className="p-2 rounded-xl text-gray-600 dark:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer shadow-2xs border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
+            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle color theme"
           >
-            {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+            {isDarkMode ? (
+              <Sun className="w-4 h-4 text-amber-400 transition-transform duration-200 hover:rotate-45" />
+            ) : (
+              <Moon className="w-4 h-4 text-gray-600 hover:text-gray-900 transition-transform duration-200 hover:-rotate-12" />
+            )}
           </button>
 
           {/* User Profile & Logout */}

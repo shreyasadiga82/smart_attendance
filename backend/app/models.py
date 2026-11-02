@@ -15,8 +15,8 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(DateTime, default=datetime.datetime.now)
+    updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
 
     # Relationships
     # (if needed)
@@ -31,8 +31,8 @@ class Student(Base):
     class_name = Column(String(50), nullable=False)
     parent_phone = Column(String(20))
     parent_email = Column(String(100))
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(DateTime, default=datetime.datetime.now)
+    updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
 
     # Relationships
     face_embeddings = relationship("FaceEmbedding", back_populates="student", cascade="all, delete-orphan")
@@ -47,7 +47,7 @@ class FaceEmbedding(Base):
     embedding = Column(Text, nullable=False)  # Storing as JSON string or binary; we'll store as JSON for simplicity
     engine = Column(String(50), nullable=False, default="insightface")
     dimension = Column(Integer, nullable=False, default=512)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime, default=datetime.datetime.now)
 
     # Relationships
     student = relationship("Student", back_populates="face_embeddings")
@@ -60,7 +60,7 @@ class Attendance(Base):
     student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
     date = Column(Date, nullable=False)
     session = Column(String(20), nullable=False)  # morning or afternoon
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    timestamp = Column(DateTime, default=datetime.datetime.now)
     method = Column(String(10), default="auto")  # auto or manual
     note = Column(Text)
     __table_args__ = (UniqueConstraint('student_id', 'date', 'session', name='_student_date_session_uc'),)
@@ -78,8 +78,8 @@ class NotificationLog(Base):
     provider = Column(String(50), nullable=False)
     status = Column(String(20), nullable=False)  # sent, failed, pending
     attempts = Column(Integer, default=0)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(DateTime, default=datetime.datetime.now)
+    updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
 
 
 class AuditLog(Base):
@@ -89,7 +89,7 @@ class AuditLog(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     action = Column(String(100), nullable=False)
     details = Column(Text)
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    timestamp = Column(DateTime, default=datetime.datetime.now)
 
 
 class Settings(Base):
@@ -98,7 +98,7 @@ class Settings(Base):
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String(100), unique=True, nullable=False)
     value = Column(Text)
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now)
 
 
 class EdgeDevice(Base):
@@ -107,5 +107,5 @@ class EdgeDevice(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(50), nullable=False)
     token = Column(String(255), unique=True, index=True, nullable=False)
-    last_seen = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_seen = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.now)

@@ -10,6 +10,7 @@ import { StatusBanner } from '../components/camera/StatusBanner'
 import { useCamera } from '../hooks/useCamera'
 import { useRecognition } from '../hooks/useRecognition'
 import { apiRequest } from '../lib/api'
+import { formatTime } from '../lib/utils'
 import { useAuth } from '../lib/auth'
 import {
   GraduationCap,
@@ -206,6 +207,25 @@ export const TeacherDashboard: React.FC = () => {
         }
       })
       setStatusMap(initialMap)
+
+      // Also populate the Live Attendance Feed with today's already marked records!
+      const initialRecognitions = attRecords
+        .filter(r => r.session === selectedSession)
+        .map(r => {
+          const s = allStudents.find(st => st.id === r.student_id)
+          return {
+            studentId: r.student_id,
+            name: s?.name || r.student?.name || `Student #${r.student_id}`,
+            rollNo: s?.roll_no || r.student?.roll_no || '',
+            status: 'already_marked',
+            timestamp: formatTime(r.timestamp),
+            confidence: 0,
+            timeMs: new Date(r.timestamp).getTime() || Date.now()
+          }
+        })
+      if (initialRecognitions.length > 0) {
+        setLiveRecognitions(initialRecognitions)
+      }
     } catch (err: any) {
       console.error('Failed to load teacher data:', err)
     } finally {

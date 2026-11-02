@@ -65,6 +65,7 @@ class AttendanceService:
             student_id=student_id,
             date=target_date,
             session=session,
+            timestamp=now,
             method=method,
             note=note
         )

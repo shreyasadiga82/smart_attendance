@@ -7,12 +7,18 @@ import { Avatar } from '../components/ui/Avatar'
 import { useAuth } from '../lib/auth'
 import { useEffect, useState } from 'react'
 import { apiRequest } from '../lib/api'
+import { formatTime } from '../lib/utils'
 
 interface MarkedStudent {
   id: number
-  name: string
-  roll_no: string
+  student_id?: number
   timestamp: string
+  name?: string
+  roll_no?: string
+  student?: {
+    name: string
+    roll_no: string
+  }
 }
 
 export const LiveAttendance = () => {
@@ -113,22 +119,26 @@ export const LiveAttendance = () => {
           <div className="p-4 flex-1 overflow-y-auto max-h-[600px]">
             {markedStudents.length > 0 ? (
               <div className="space-y-2.5">
-                {markedStudents.map((student) => (
-                  <div key={student.id} className="flex items-center space-x-3 p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                    <Avatar className="h-9 w-9 shadow-xs" name={student.name} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                        {student.name}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-                        {student.roll_no}
-                      </p>
+                {markedStudents.map((item) => {
+                  const sName = item.student?.name || item.name || `Student #${item.student_id || item.id}`
+                  const sRoll = item.student?.roll_no || item.roll_no || ''
+                  return (
+                    <div key={item.id} className="flex items-center space-x-3 p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                      <Avatar className="h-9 w-9 shadow-xs" name={sName} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                          {sName}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                          {sRoll} {item.timestamp ? `• ${formatTime(item.timestamp)}` : ''}
+                        </p>
+                      </div>
+                      <Chip variant="success" size="xs">
+                        Marked
+                      </Chip>
                     </div>
-                    <Chip variant="success" size="xs">
-                      Marked
-                    </Chip>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <div className="py-12 text-center text-sm text-gray-500 dark:text-gray-400">

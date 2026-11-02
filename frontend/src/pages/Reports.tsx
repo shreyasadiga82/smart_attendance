@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Chip } from '../components/ui/Chip'
 import { apiRequest } from '../lib/api'
+import { formatTime } from '../lib/utils'
 import { Download, FileSpreadsheet, Filter, CheckCircle2, XCircle, TrendingUp, Users } from 'lucide-react'
 
 interface ReportData {
@@ -298,7 +299,7 @@ export const Reports: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-right text-xs font-mono text-gray-500 dark:text-gray-400">
-                        {row.time_in ? new Date(row.time_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                        {row.time_in ? formatTime(row.time_in) : '-'}
                       </td>
                     </tr>
                   ))

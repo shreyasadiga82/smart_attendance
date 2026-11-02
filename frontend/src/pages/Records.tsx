@@ -8,6 +8,7 @@ import { Avatar } from '../components/ui/Avatar'
 import { Dialog } from '../components/ui/Dialog'
 import { useAuth } from '../lib/auth'
 import { apiRequest } from '../lib/api'
+import { formatTime } from '../lib/utils'
 import { Download, FileSpreadsheet, Trash2, Edit2, CheckCircle2, Clock } from 'lucide-react'
 
 interface AttendanceRecord {
@@ -307,7 +308,7 @@ export const Records: React.FC = () => {
                         {record.session}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400 font-mono">
-                        {new Date(record.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {formatTime(record.timestamp)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <Chip
